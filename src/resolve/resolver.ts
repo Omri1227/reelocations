@@ -122,6 +122,17 @@ export interface Decision {
 /** Two same-named options this close are the same neighbourhood: saving the better one as approximate is still useful. */
 const MEDIUM_MAX_KM = 25;
 
+const CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+/** A Latin-script name against a Google listing that mixes CJK and Latin text, sharing an identifying word of 5+ letters. */
+function crossScriptPartial(clue: Clue, c: Candidate): boolean {
+  if (!c.googlePlaceId || !clue.explicit || !clue.sources.some((s) => s === 'caption' || s === 'note')) return false;
+  if (!CJK.test(c.name) || CJK.test(clue.text)) return false;
+  // Split where the script changes: "…難波店Wagyu Samplero" has no space before "Wagyu".
+  const latin = new Set(tokens(c.name.replace(/[^\p{Script=Latin}\p{N}]+/gu, ' ')));
+  const own = distinctiveTokens(clue.text);
+  return own.length >= 1 && own.some((t) => t.length >= 5 && latin.has(t));
+}
+
 /** The same country under its different spellings (OpenStreetMap writes "United States", a Google address ends ", USA"). */
 const COUNTRY_ALIASES = [['united states', 'united states of america', 'usa', 'us'], ['united kingdom', 'uk', 'great britain', 'england', 'scotland', 'wales'], ['turkey', 'turkiye'],
   ['czechia', 'czech republic'], ['south korea', 'korea', '대한민국', '한국'], ['japan', '日本'], ['china', '中国', '中國'], ['taiwan', '台灣', '台湾', '臺灣'], ['united arab emirates', 'uae'],
@@ -188,7 +199,15 @@ export function decide(clue: Clue, rankedIn: Candidate[]): Decision {
   // Checked first so the reason is clear even when the stop's name differs (a listed "…ord" vs an "…ort" stop).
   // Stations too: "visiting Tokyo" matched Tokyo railway station (seen live) — unless the clue itself is about transport.
   if ((top.isStop || top.category === 'transport') && clue.categoryHint !== 'transport' && !/\b(station|airport|terminal|bus stop|ferry|port)\b|駅/i.test(clue.text)) return { ranked, why: `only a public-transport stop matches ("${top.displayName}") — needs your confirmation` };
-  if ((top.scoreParts?.nameSim ?? 0) < 0.8) return { ranked, why: `best name match is weak (${top.name})` };
+  if ((top.scoreParts?.nameSim ?? 0) < 0.8) {
+    // A Google listing named in the local script with only part of the name in Latin ("見本焼肉 難波店 Wagyu Samplero"
+    // for a Reel that says "Mihon Samplero" — seen live): the rest of the name is most likely the same words in
+    // Japanese/Chinese/Korean, which cannot be compared letter by letter. Inside the Reel's area and sharing an
+    // identifying word, it is saved on that listing as APPROXIMATE and asked about — better than a rough estimate.
+    if (crossScriptPartial(clue, top) && top.scoreParts?.context === 1 && !top.isArea && !top.isStop)
+      return { confirmed: top, ranked, approximate: true, review: true, why: `the listing "${top.name}" is written in another script and only partly matches "${clue.text}"` };
+    return { ranked, why: `best name match is weak (${top.name})` };
+  }
   if (top.scoreParts?.context === 0) return { ranked, why: `best match "${top.displayName}" is outside the area mentioned in the Reel` };
   if ((top.score ?? 0) < 0.68) {
     const why = `low overall score ${top.score}`;
@@ -551,13 +570,19 @@ export async function resolveReel(evidence: TextEvidence[], deps: ResolveDeps, o
   //     pin itself (to confirm) and the alternatives inside the Reel's area (to replace it). Not when it is a copy of a
   //     place already found ("X" next to "X Waterfall").
   for (const m of medium) {
-    const found = links.flatMap((l) => [l.place.name, l.clueText ?? '']).filter((n) => n.length >= 3);
+    // A real listing beats an unverified AI position for the same name: the estimate goes, the listing is saved.
+    const est = links.findIndex((l) => l.place.place_id.startsWith('aiest:') && haversineKm(l.place, m.place) < 2
+      && [l.place.name, l.clueText ?? ''].some((n) => n.length >= 3 && (nameSimilarity(m.clue.text, n) >= 0.6 || norm(n).includes(norm(m.clue.text)))));
+    // …but only if the listing would be saved: judged against the Reel's OTHER pins, so nothing is lost.
+    const others = links.filter((_, i) => i !== est);
+    const found = others.flatMap((l) => [l.place.name, l.clueText ?? '']).filter((n) => n.length >= 3);
     // Distance alone is no copy: neighbouring restaurants can be 30 m apart (two famous Bangkok shops are).
-    const copy = links.some((l) => l.place.place_id === m.place.place_id || (haversineKm(l.place, m.place) < 0.3 && nameSimilarity(l.place.name, m.place.name) >= 0.5))
+    const copy = others.some((l) => l.place.place_id === m.place.place_id || (haversineKm(l.place, m.place) < 0.3 && nameSimilarity(l.place.name, m.place.name) >= 0.5))
       || found.some((n) => nameSimilarity(m.clue.text, n) >= 0.6 || norm(n).includes(norm(m.clue.text)) || norm(m.clue.text).includes(norm(n)));
     if (copy) { notes.push(`"${m.clue.text}" matches a place already found — not saved separately.`); continue; }
+    if (est >= 0) { notes.push(`"${links[est]!.place.name}": the AI estimate is replaced by the listing "${m.place.name}".`); links.splice(est, 1); }
     const top = m.d.confirmed!;
-    const alts = m.ranked.filter((c) => c.ref !== top.ref && (c.scoreParts?.context ?? 0.5) > 0).slice(0, 3).map((c) => ({ ...c, clueText: m.clue.text, replacesApproxPlaceId: top.ref }));
+    const alts = m.ranked.filter((c) => c.ref !== top.ref && (c.scoreParts?.context ?? 0.5) > 0 && (c.scoreParts?.nameSim ?? 0) >= 0.3).slice(0, 3).map((c) => ({ ...c, clueText: m.clue.text, replacesApproxPlaceId: top.ref }));
     review.push({ ...top, clueText: m.clue.text, confirmsApproxPlaceId: top.ref, ref: `confirm:${top.ref}` }, ...alts);
     approxReview.push(`"${m.clue.text}": ${m.d.why}`);
     links.push({ place: { ...m.place, confidence: 'approximate', source: `${m.place.source} · approximate: ${m.d.why}` }, cue: m.cue.cue, cueSource: m.cue.source, role: m.clue.role, clueText: m.clue.text, clue: m.clue });

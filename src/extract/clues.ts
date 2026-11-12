@@ -109,6 +109,8 @@ function meaningful(name: string): boolean {
 
 function splitPlaceArea(s: string): { text: string; area?: string } {
   // "Banias Waterfall, Golan Heights" | "Café Xoho, Tel Aviv — best flat white" | "Blue Lagoon (Comino)"
+  // An Instagram handle next to the name is the place's account, not its area ("📍 Example Grill, Namba (@examplegrill)").
+  s = s.replace(/\s*\(\s*@[\w.]+\s*\)/g, ' ').replace(/(?<=\S)\s+@[\w.]+\s*$/, '');
   // A location tag never continues past a dash/sentence end: drop the commentary first.
   const head = s.split(/\s+[—–|]\s+|\s+-\s+|[.!?](?:\s|$)|\s{2,}/u)[0].replace(/[\p{Extended_Pictographic}️]+/gu, ' ').trim();
   const m = head.match(/^(.+?)\s*(?:,|\(|\bin\b)\s*([^()]+?)\)?$/u);

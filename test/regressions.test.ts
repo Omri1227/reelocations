@@ -108,6 +108,20 @@ test('Review Queue: an option for another place the Reel lists is pre-selected a
   assert.equal(guessReplaced(s, key, { ...far, clueText: 'my own search' }), 'osm:node:1');
 });
 
+test('a Google listing named in Japanese with part of the name in Latin becomes an Approximate pin on that listing, with a question', async () => {
+  const { resolveReel } = await import('../src/resolve/resolver.ts');
+  const area = { ref: 'osm:relation:5', name: 'Namba', displayName: 'Namba, Osaka, Japan', lat: 34.666, lon: 135.501, category: 'area' as const, isArea: true, isRoute: false, names: [], bbox: [34.65, 34.68, 135.49, 135.51] as [number, number, number, number] };
+  const listing = { ref: 'gplace:G1', googlePlaceId: 'G1', name: '見本焼肉 難波店Wagyu Samplero', displayName: '見本焼肉 難波店Wagyu Samplero, Namba, Osaka, Japan', lat: 34.667, lon: 135.502, category: 'restaurant' as const, isArea: false, isRoute: false, names: [] };
+  const deps: any = { geocoder: { search: async (q: string) => (/^Namba$/.test(q) ? [area] : []) }, google: async () => [listing] };
+  const r = await resolveReel([{ source: 'caption', text: '📍 Mihon Samplero, Namba (@samplero.osaka)' }], deps);
+  assert.deepEqual(r.links.map((l) => [l.place.google_place_id, l.place.confidence]), [['G1', 'approximate']]);
+  assert.equal(r.status, 'needs_review');
+  assert.ok(r.reviewCandidates.some((c) => c.confirmsApproxPlaceId), 'the Review Queue offers a one-tap confirmation');
+  // No shared identifying word: stays an open question, no pin.
+  const no = await resolveReel([{ source: 'caption', text: '📍 Other Bistro, Namba' }], deps);
+  assert.deepEqual(no.links, []);
+});
+
 test('country names in different spellings are the same country; short CJK names match and are extracted', () => {
   assert.ok(inCountry('1 Example St, Springfield, IL 62701, USA', 'United States'));
   assert.ok(inCountry('Example Tower, London, UK', 'United Kingdom'));
@@ -117,5 +131,9 @@ test('country names in different spellings are the same country; short CJK names
   assert.ok(nameSimilarity('見本山', '見本山 Mount Example') >= 0.8);
   const names = (text: string) => extractClues([{ source: 'caption', text }]).clues.map((c) => c.text);
   assert.deepEqual(names('📍 京都'), ['京都']);
+  // An Instagram handle after the name is not the area (it made the search fail, and the pin came out approximate).
+  const c = extractClues([{ source: 'caption', text: '📍 Example Grill, Namba (@examplegrill.osaka)\n7 min from the station' }]).clues;
+  assert.deepEqual(c.filter((x) => x.kind !== 'area').map((x) => [x.text, x.area]), [['Example Grill', 'Namba']]);
+  assert.ok(!c.some((x) => x.text.includes('@')));
   assert.deepEqual(names('1. 見本寺\n2. 例示神社'), ['見本寺', '例示神社']);
 });
