@@ -20,7 +20,19 @@ Nothing is shared with the authors or with other installations.
   (*Reelocations*, beta), and a desktop publisher can keep one Google My Map per country. See
   [Google Maps](#google-maps).
 
+## Screenshots
+
+From `npm run demo` (synthetic data) in iPhone-size Chrome; regenerate with `node scripts/screenshots.ts "<demo link>"`.
+
+| Places by country | A place | Nearby |
+|---|---|---|
+| <img src="docs/screenshots/1-countries.png" width="250" alt="Countries list with the map"> | <img src="docs/screenshots/3-place.png" width="250" alt="Place card with Open in Google Maps, restaurant type, Star and Delete"> | <img src="docs/screenshots/4-nearby.png" width="250" alt="Nearby: saved places within 1 km of the phone"> |
+| **Approximate pin** | **Review Queue** | **Setup** |
+| <img src="docs/screenshots/5-approximate.png" width="250" alt="An approximate pin with its Why approximate? Review button"> | <img src="docs/screenshots/6-review.png" width="250" alt="Review Queue entry: why it is approximate, the options with Google Maps links and Replace or Add"> | <img src="docs/screenshots/7-setup.png" width="250" alt="Setup: connect the iPhone Shortcut"> |
+
 ## How the pieces fit
+
+![Architecture: iPhone Shortcut → server on Railway (intake, pipeline, SQLite, web and APIs) → web app, Google Maps list and the optional desktop My Maps publisher](docs/architecture.svg)
 
 ```
 iPhone Shortcut ── POST /api/intake/<personal token> ──►  Server (src/server.ts, Node 24, SQLite; Railway in production)
@@ -37,8 +49,8 @@ Desktop publisher (optional; src/cli.ts publish, your own Chrome) ◄───�
    └─► Google My Maps: "Reels · <flag> <country>" (one map per country, a layer per city) ─► Google Maps app
 ```
 
-A diagram, the full flow and every credential: [docs/reelocations-architecture.pdf](docs/reelocations-architecture.pdf)
-(source: `docs/architecture.html`).
+The full flow and every credential: [docs/reelocations-architecture.pdf](docs/reelocations-architecture.pdf)
+(source: `docs/architecture.html`; the diagram above is `docs/architecture.svg`).
 
 ## Quick start (local, no accounts or keys)
 
@@ -179,7 +191,7 @@ src/extract/         clue extraction from caption/OCR/speech                    
 src/media/           OCR, frames, speech, OpenAI/vision fallbacks (budgeted)    src/sync/        My Maps + Google Maps list publishers
 src/web/             map.html (web app), landing, setup, icons                  src/accounts.ts  sign-in, collections, credentials
 test/                node:test suites + recorded fixtures                       scripts/         demo, eval, dry run, browser checks
-docs/                HOSTED (current), QUALITY-RESEARCH, architecture (PDF + HTML), legacy setup
+docs/                HOSTED (current), QUALITY-RESEARCH, architecture (PDF, HTML, SVG), screenshots, legacy setup
 ```
 
 ## License
