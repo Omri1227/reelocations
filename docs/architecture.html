@@ -31,123 +31,153 @@ code in this repository as of 2026-11-12. reelocations is self-hosted: each inst
 own credentials. Every credential value below is a placeholder.</p>
 
 <h2>1. The pieces</h2>
-<svg viewBox="0 0 760 450" width="100%" role="img" aria-label="Architecture diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" width="100%" role="img" aria-label="reelocations architecture">
   <defs>
     <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#1d2430"/></marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#1a7f37"/></marker>
   </defs>
   <style>
+    text{font-family:"Segoe UI",Arial,Helvetica,sans-serif}
     .box{fill:#fff;stroke:#1d2430;stroke-width:1.2}
+    .key{fill:#eef7f1;stroke:#1a7f37;stroke-width:1.6}
     .zone{fill:#f3f5f8;stroke:#c9d0db;stroke-dasharray:4 3}
+    .opt{fill:#fafafa;stroke:#c9d0db;stroke-dasharray:6 4}
     .ext{fill:#fff8e6;stroke:#9a6700;stroke-width:1}
-    .t{font-size:12px;font-weight:600;fill:#1d2430}
-    .s{font-size:10px;fill:#5b6576}
-    .z{font-size:10.5px;font-weight:700;fill:#5b6576;letter-spacing:.04em}
-    .l{stroke:#1d2430;stroke-width:1.2;fill:none;marker-end:url(#a)}
+    .t{font-size:12.5px;font-weight:600;fill:#1d2430}
+    .s{font-size:10.5px;fill:#4b5563}
+    .z{font-size:11px;font-weight:700;fill:#5b6576;letter-spacing:.04em}
+    .l{stroke:#1d2430;stroke-width:1.3;fill:none;marker-end:url(#a)}
+    .lg{stroke:#1a7f37;stroke-width:2;fill:none;marker-end:url(#g)}
     .d{stroke:#9a6700;stroke-width:1;fill:none;stroke-dasharray:3 3;marker-end:url(#a)}
-    .n{font-size:10px;fill:#1f6feb;font-weight:600}
+    .lo{stroke:#8b95a5;stroke-width:1.2;fill:none;stroke-dasharray:5 4;marker-end:url(#a)}
+    .n{font-size:11px;fill:#1f6feb;font-weight:700}
+    .ng{font-size:11px;fill:#1a7f37;font-weight:700}
   </style>
+  <rect width="960" height="640" fill="#ffffff"/>
 
-  <!-- iPhone zone -->
-  <rect class="zone" x="8" y="20" width="200" height="300" rx="8"/>
-  <text class="z" x="18" y="36">IPHONE</text>
-  <rect class="box" x="20" y="48" width="176" height="46" rx="6"/>
-  <text class="t" x="30" y="67">Instagram</text><text class="s" x="30" y="83">Reel → Share → Share to…</text>
-  <rect class="box" x="20" y="116" width="176" height="74" rx="6"/>
-  <text class="t" x="30" y="135">Shortcut "Save Reel to Map"</text>
-  <text class="s" x="30" y="151">Take Screenshot, optional note</text>
-  <text class="s" x="30" y="165">POST share  (Reel link, note)</text>
-  <text class="s" x="30" y="179">POST media  (JPEG, base64)</text>
-  <rect class="box" x="20" y="214" width="176" height="46" rx="6"/>
-  <text class="t" x="30" y="233">Web app (Home Screen)</text><text class="s" x="30" y="249">map, Nearby, Review Queue</text>
-  <rect class="box" x="20" y="270" width="176" height="40" rx="6"/>
-  <text class="t" x="30" y="288">Google Maps app</text><text class="s" x="30" y="302">You → Saved → Maps</text>
-  <path class="l" d="M108,94 V114"/>
+  <!-- ============ iPhone ============ -->
+  <rect class="zone" x="10" y="36" width="220" height="430" rx="10"/>
+  <text class="z" x="22" y="54">IPHONE</text>
+  <rect class="box" x="22" y="64" width="196" height="44" rx="7"/>
+  <text class="t" x="32" y="82">Instagram</text><text class="s" x="32" y="98">Reel → Share → Save Reel to Map</text>
+  <rect class="box" x="22" y="128" width="196" height="76" rx="7"/>
+  <text class="t" x="32" y="146">Shortcut "Save Reel to Map"</text>
+  <text class="s" x="32" y="162">installed from the iCloud link,</text>
+  <text class="s" x="32" y="176">your personal link pasted once</text>
+  <text class="s" x="32" y="192">sends: Reel link + screenshot</text>
+  <rect class="box" x="22" y="240" width="196" height="76" rx="7"/>
+  <text class="t" x="32" y="258">Web app (Home Screen)</text>
+  <text class="s" x="32" y="274">Map · Nearby · New · Starred</text>
+  <text class="s" x="32" y="288">Approximate pins · Review Queue</text>
+  <text class="s" x="32" y="302">Setup · AI Balance</text>
+  <rect class="key" x="22" y="352" width="196" height="76" rx="7"/>
+  <text class="t" x="32" y="370">Google Maps app</text>
+  <text class="s" x="32" y="386">You → Saved → Reelocations</text>
+  <text class="s" x="32" y="400">the real listing: normal place card</text>
+  <text class="s" x="32" y="414">(My Maps: You → Saved → Maps)</text>
+  <path class="l" d="M120,108 V126"/>
 
-  <!-- Server zone -->
-  <rect class="zone" x="250" y="20" width="270" height="300" rx="8"/>
-  <text class="z" x="260" y="36">RAILWAY: ONE SERVICE (src/server.ts)</text>
-  <rect class="box" x="262" y="48" width="246" height="40" rx="6"/>
-  <text class="t" x="272" y="66">Intake  /api/intake/&lt;token&gt;</text><text class="s" x="272" y="80">personal token → user + collection</text>
-  <rect class="box" x="262" y="100" width="246" height="92" rx="6"/>
-  <text class="t" x="272" y="118">Pipeline (worker cycle)</text>
-  <text class="s" x="272" y="134">1 clues: note, OCR of screenshot, speech</text>
-  <text class="s" x="272" y="148">2 lookup: OpenStreetMap, Google Places</text>
-  <text class="s" x="272" y="162">3 AI fallback (budget-capped, US$3/month)</text>
-  <text class="s" x="272" y="176">4 sure → pin · unsure → Review Queue</text>
-  <rect class="box" x="262" y="204" width="246" height="40" rx="6"/>
-  <text class="t" x="272" y="222">SQLite + media on volume /data</text><text class="s" x="272" y="236">places, Reels, users, credentials</text>
-  <rect class="box" x="262" y="256" width="246" height="54" rx="6"/>
-  <text class="t" x="272" y="274">Web + APIs</text>
-  <text class="s" x="272" y="288">/auth/google · /api/places · SSE /api/events</text>
-  <text class="s" x="272" y="302">/api/publisher/export, /report, /events</text>
-  <path class="l" d="M196,150 C228,150 230,68 260,68"/>
-  <text class="n" x="208" y="112">①</text>
-  <path class="l" d="M385,88 V98"/><path class="l" d="M385,192 V202"/><path class="l" d="M385,244 V254"/>
-  <path class="l" d="M260,283 C232,283 230,240 198,240"/>
-  <text class="n" x="214" y="270">②</text>
+  <!-- ============ Railway ============ -->
+  <rect class="zone" x="262" y="36" width="406" height="430" rx="10"/>
+  <text class="z" x="274" y="54">RAILWAY: ONE SERVICE (Docker · src/server.ts)</text>
+  <rect class="box" x="274" y="64" width="382" height="40" rx="7"/>
+  <text class="t" x="284" y="81">Intake   /api/intake/&lt;personal link&gt;</text><text class="s" x="284" y="96">the link says whose collection it is · each Reel processed once</text>
+  <rect class="box" x="274" y="116" width="382" height="94" rx="7"/>
+  <text class="t" x="284" y="134">Pipeline</text>
+  <text class="s" x="284" y="150">1  clues: caption or your note, text read from the screenshot (OCR)</text>
+  <text class="s" x="284" y="164">2  OpenStreetMap + Google Places → exact listing and branch</text>
+  <text class="s" x="284" y="178">3  OpenAI reads the screenshot only when text is not enough (≤ $3/month)</text>
+  <text class="s" x="284" y="196">4  sure → pin · medium → Approximate pin · unsure → Review Queue</text>
+  <rect class="key" x="274" y="222" width="382" height="82" rx="7"/>
+  <text class="t" x="284" y="240">Google Maps list publisher</text>
+  <text class="s" x="284" y="256">headless Chromium with your connected Google session</text>
+  <text class="s" x="284" y="270">listing by Place ID → branch check → Save → "Reelocations"</text>
+  <text class="s" x="284" y="284">only Reels shared after connecting · each listing once</text>
+  <text class="s" x="284" y="298">branch unclear → Review Queue (This is the listing / None)</text>
+  <rect class="box" x="274" y="316" width="382" height="76" rx="7"/>
+  <text class="t" x="284" y="334">Web app + API</text>
+  <text class="s" x="284" y="350">Google Sign-In · collections, invitations, leave / delete account</text>
+  <text class="s" x="284" y="364">Review Queue: confirm, Replace or Add, Google Maps links</text>
+  <text class="s" x="284" y="378">live updates (SSE) · AI Balance · /api/publisher/* (optional)</text>
+  <rect class="box" x="274" y="404" width="382" height="48" rx="7"/>
+  <text class="t" x="284" y="422">Volume /data</text>
+  <text class="s" x="284" y="438">SQLite · screenshots · Google session (private, never in Git or logs)</text>
+  <path class="l" d="M465,104 V114"/>
+  <path class="l" d="M465,210 V220"/>
 
-  <!-- External services -->
-  <rect class="ext" x="560" y="40" width="190" height="38" rx="6"/>
-  <text class="t" x="570" y="57">Google Identity Services</text><text class="s" x="570" y="71">sign-in ID token (no password)</text>
-  <rect class="ext" x="560" y="90" width="190" height="38" rx="6"/>
-  <text class="t" x="570" y="107">Google Places API (New)</text><text class="s" x="570" y="121">Text Search: listing, branch</text>
-  <rect class="ext" x="560" y="140" width="190" height="38" rx="6"/>
-  <text class="t" x="570" y="157">OpenStreetMap</text><text class="s" x="570" y="171">Nominatim, Overpass (free)</text>
-  <rect class="ext" x="560" y="190" width="190" height="38" rx="6"/>
-  <text class="t" x="570" y="207">OpenAI API</text><text class="s" x="570" y="221">reads frames when text is not enough</text>
-  <rect class="ext" x="560" y="240" width="190" height="66" rx="6"/>
-  <text class="t" x="570" y="257">Google Maps list (beta)</text><text class="s" x="570" y="271">headless Chromium, your session:</text><text class="s" x="570" y="285">listing by Place ID → Save</text><text class="s" x="570" y="299">→ app: Saved → Reelocations</text>
-  <path class="l" d="M508,296 C535,296 535,266 558,266"/>
-  <text class="n" x="512" y="320">⑤</text>
-  <path class="d" d="M508,140 C535,140 535,109 558,109"/>
-  <path class="d" d="M508,152 L558,159"/>
-  <path class="d" d="M508,165 C535,165 535,209 558,209"/>
-  <path class="d" d="M508,278 C540,278 535,59 558,59"/>
+  <!-- iPhone ↔ server -->
+  <path class="l" d="M218,166 C245,166 245,84 272,84"/>
+  <text class="n" x="236" y="122">①</text>
+  <path class="l" d="M272,354 C245,354 245,278 220,278"/>
+  <text class="n" x="236" y="330">②</text>
 
-  <!-- Desktop zone -->
-  <rect class="zone" x="250" y="340" width="500" height="82" rx="8"/>
-  <text class="z" x="345" y="356">YOUR COMPUTER (OPTIONAL): DESKTOP PUBLISHER</text>
-  <rect class="box" x="262" y="364" width="246" height="50" rx="6"/>
-  <text class="t" x="272" y="382">npm run cli -- publish</text><text class="s" x="272" y="397">Windows task every 15 min, sync-only</text>
-  <text class="s" x="272" y="409">drives your own Chrome profile</text>
-  <rect class="box" x="560" y="364" width="190" height="50" rx="6"/>
-  <text class="t" x="570" y="382">Google My Maps</text><text class="s" x="570" y="397">"Reels · &lt;flag&gt; &lt;country&gt;"</text><text class="s" x="570" y="409">one map per country, layer per city</text>
-  <path class="l" d="M330,310 V362"/>
-  <text class="n" x="336" y="336">③ export</text>
-  <path class="l" d="M508,389 H558"/>
-  <path class="l" d="M655,414 V442 H110 V314"/>
-  <text class="n" x="118" y="385">④ Google syncs</text><text class="n" x="118" y="399">saved maps</text>
+  <!-- ============ External services ============ -->
+  <text class="z" x="702" y="54">SERVICES (your own accounts)</text>
+  <rect class="ext" x="700" y="64" width="250" height="38" rx="7"/>
+  <text class="t" x="710" y="80">Google Sign-In</text><text class="s" x="710" y="94">ID token only, no password</text>
+  <rect class="ext" x="700" y="112" width="250" height="38" rx="7"/>
+  <text class="t" x="710" y="128">Google Places API (optional)</text><text class="s" x="710" y="142">exact listing and branch</text>
+  <rect class="ext" x="700" y="160" width="250" height="38" rx="7"/>
+  <text class="t" x="710" y="176">OpenStreetMap</text><text class="s" x="710" y="190">Nominatim · Overpass (free)</text>
+  <rect class="ext" x="700" y="208" width="250" height="38" rx="7"/>
+  <text class="t" x="710" y="224">OpenAI API (optional)</text><text class="s" x="710" y="238">reads a screenshot when needed</text>
+  <rect class="key" x="700" y="262" width="250" height="52" rx="7"/>
+  <text class="t" x="710" y="280">Google Maps — your account</text>
+  <text class="s" x="710" y="294">private list "Reelocations"</text>
+  <text class="s" x="710" y="308">(no API: the web app's own Save)</text>
+  <path class="d" d="M656,140 C680,140 680,131 698,131"/>
+  <path class="d" d="M656,160 C680,160 680,179 698,179"/>
+  <path class="d" d="M656,178 C684,178 684,227 698,227"/>
+  <path class="d" d="M656,334 C690,334 690,83 698,83"/>
+  <path class="lg" d="M656,262 C680,262 680,288 698,288"/>
+  <text class="ng" x="668" y="256">③</text>
+  <path class="lg" d="M825,314 V484 H120 V430"/>
+  <text class="ng" x="560" y="478">④ Google shows the list in the app</text>
+
+  <!-- ============ Optional desktop publisher ============ -->
+  <rect class="opt" x="262" y="512" width="688" height="112" rx="10"/>
+  <text class="z" x="274" y="530">OPTIONAL: DESKTOP MY MAPS PUBLISHER (your computer must be on)</text>
+  <rect class="box" x="274" y="542" width="300" height="66" rx="7"/>
+  <text class="t" x="284" y="560">npm run cli -- publish</text>
+  <text class="s" x="284" y="576">your own Chrome profile · scheduled task</text>
+  <text class="s" x="284" y="590">downloads finished pins from the server</text>
+  <rect class="box" x="640" y="542" width="296" height="66" rx="7"/>
+  <text class="t" x="650" y="560">Google My Maps</text>
+  <text class="s" x="650" y="576">"Reels · &lt;flag&gt; &lt;country&gt;": one map per country</text>
+  <text class="s" x="650" y="590">custom pins at the listing's coordinates</text>
+  <path class="lo" d="M300,452 V540"/>
+  <text class="n" x="306" y="504">⑤</text>
+  <path class="lo" d="M574,575 H638"/>
 </svg>
+
 
 <h2>2. From share to Google Maps</h2>
 <ol>
-  <li><b>Share (①).</b> In Instagram the user taps Share → <i>Save Reel to Map</i>. The Shortcut takes a screenshot of the
-    Reel and sends two JSON requests to the user's personal intake link, <code>https://&lt;your-app&gt;/api/intake/&lt;intake-token&gt;</code>:
-    <code>action=share</code> (the Reel link, optional note, time) and <code>action=media</code> (the screenshot as base64,
-    with the Reel link). The token identifies the user and their collection, so nobody has to sign in on the Shortcut.
-    The link alone carries only the Reel ID: Instagram's caption is not available to the app in a permitted way, so the
-    screenshot is the main source of text.</li>
-  <li><b>Process (server).</b> Each share starts a worker cycle at once (and one runs every 60 s). The pipeline reads the
-    note and the screenshot (local OCR), optionally speech from a screen recording (local Whisper), and extracts place
-    clues. It looks them up in OpenStreetMap and, with a key, in Google Places to get the exact listing and branch. Only
-    when the text is not enough does it ask OpenAI to read the image, inside a hard monthly budget. A confident result
-    becomes a pin with the Reel link and a short quote; anything uncertain waits in the <b>Review Queue</b>.</li>
-  <li><b>Show (②).</b> The web app (<code>src/web/map.html</code>, installable to the Home Screen) signs in with Google, loads
-    <code>/api/places</code> for the active collection and stays current through server-sent events. It groups places by
-    country and city, filters by type and restaurant subtype, and offers Nearby (location stays in the page), New,
-    Starred and the Review Queue. Every request is checked against collection membership on the server.</li>
-  <li><b>Publish (③, ④).</b> Google My Maps has no public API, so a small publisher on the user's computer, paired once
-    with a desktop code, downloads finished pins from <code>/api/publisher/export</code> and writes them into one My Map per
-    country with Playwright in the user's own signed-in Chrome profile. It reports back what it published. The Google
-    Maps app then shows these maps under <i>You → Saved → Maps</i>. These are custom pins, and the computer must be on.</li>
-  <li><b>Save the real listing (⑤, beta).</b> Optionally the server itself saves each verified pin's <b>actual Google Maps
-    listing</b> to a list (default <i>Reelocations</i>) in the owner's Google account, so it opens its normal place card in
-    the Google Maps app with the computer off. Google has no API for saved lists, so the server opens the listing by Place
-    ID in headless Chromium with a browser session the owner connected once (<code>npm run cli -- gmaps-connect</code>),
-    checks the name and branch on the place card, and uses Google Maps' own <i>Save</i>. Approximate or ambiguous pins
-    stay in the Review Queue, and so does a save the branch check holds back. Only Reels shared after the first
-    connection are saved. Verified end to end from Railway with a test account (six Reels; list and place cards checked on
-    an iPhone).</li>
+  <li><b>Share (①).</b> In Instagram the user taps Share → <i>Save Reel to Map</i>. The Shortcut (installed from the
+    iCloud link, the user's personal link pasted once) takes a screenshot of the Reel and sends two JSON requests to
+    <code>https://&lt;your-app&gt;/api/intake/&lt;personal link&gt;</code>: <code>action=share</code> (the Reel link, optional
+    note, time) and <code>action=media</code> (the screenshot). The link identifies the user and their collection, so
+    nobody signs in on the Shortcut. The Reel link alone carries only its ID, so the screenshot is the main source of text.</li>
+  <li><b>Process (server).</b> Each share starts a worker cycle at once. The pipeline reads the note and the screenshot
+    (local OCR), looks the clues up in OpenStreetMap and, with a key, in Google Places to get the exact listing and branch,
+    and asks OpenAI to read the screenshot only when the text is not enough (hard cap US$3/month). The result is one of
+    three: a <b>pin</b> (sure), an <b>Approximate pin</b> that keeps its Review Queue entry (medium confidence), or a
+    <b>Review Queue</b> entry only (unsure).</li>
+  <li><b>Show (②).</b> The web app (installable to the Home Screen) signs in with Google, shows the collection by country
+    and city with type filters, Nearby, New and Starred, live through server-sent events. In the Review Queue the user
+    confirms a place, or picks an option that <b>replaces</b> a pin or is <b>added</b> as another place. Every request is
+    checked against collection membership.</li>
+  <li><b>Save the real listing (③, ④).</b> When the collection owner has connected a Google account once
+    (<code>npm run cli -- gmaps-connect</code>; the session is kept privately on the volume), the server's Google Maps list
+    publisher opens each new verified pin's listing <b>by Place ID</b> in headless Chromium, checks name and branch on the
+    place card, and uses Google Maps' own <i>Save</i> to put it in the private list <i>Reelocations</i>. Google has no API
+    for saved lists. Only Reels shared after the first connection are saved, each listing once; a save the branch check
+    holds back goes to the Review Queue (<i>This is the listing</i> / <i>None of these</i>). Google then shows the list in
+    the Google Maps app under <i>You → Saved → Reelocations</i>, where each place opens its normal place card. Verified
+    end to end from Railway with a test account (six Reels; list and place cards checked on an iPhone).</li>
+  <li><b>Optional: My Maps per country (⑤).</b> A desktop publisher on the user's computer downloads finished pins from
+    <code>/api/publisher/export</code> and writes one Google My Map per country in the user's own Chrome profile. These are
+    custom pins at the listing's coordinates (<i>You → Saved → Maps</i>), and the computer must be on.</li>
 </ol>
 
 <div class="page"></div>
