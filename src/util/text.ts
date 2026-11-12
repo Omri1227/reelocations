@@ -34,7 +34,9 @@ export function nameSimilarity(a: string, b: string): number {
   let contained = 0; for (const t of small) if (big.has(t)) contained++;
   const containment = contained / small.size;
   // containment only counts if the shorter side is meaningful (≥2 tokens or a long single token)
-  const meaningful = small.size >= 2 || [...small][0].length >= 5;
+  // …a complete Chinese/Japanese/Korean name is often one short token ("大船山" inside "大船山 Mount Taisen").
+  const one = [...small][0]!;
+  const meaningful = small.size >= 2 || one.length >= 5 || (one.length >= 2 && /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]+$/u.test(one));
   return Math.max(dice, meaningful ? 0.92 * containment : 0);
 }
 

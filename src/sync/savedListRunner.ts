@@ -78,7 +78,7 @@ export function connectGmaps(store: Store, dataDir: string, o: { collectionId: n
   // after it are saved. Kept for good: reconnecting, disconnecting, retries and redeploys never move it.
   store.db.prepare('INSERT OR IGNORE INTO kv(k, v) VALUES (?, ?)').run(cutoffKey(o.collectionId), nowIso());
   // A new session retries what failed for lack of sign-in.
-  store.db.prepare("UPDATE gmaps_saves SET status='pending', next_try_at=NULL WHERE destination_id=? AND status='failed'").run(id);
+  store.db.prepare("UPDATE gmaps_saves SET status='pending', attempts=0, next_try_at=NULL WHERE destination_id=? AND status='failed'").run(id);
   return id;
 }
 

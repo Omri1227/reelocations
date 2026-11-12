@@ -333,7 +333,7 @@ export function startServer(o: ServerOptions = {}) {
           const r = app.store.db.prepare("UPDATE gmaps_destinations SET status='connected', detail=NULL WHERE collection_id=? AND disconnected_at IS NULL AND status IN ('needs_signin','error')").run(Number(b.collection ?? 1));
           // Failed items wait out their back-off unless the operator asks for a retry now.
           // items_now: failed items skip their back-off; branch-check skips are checked again (after a rule fix).
-          const items = b.items_now ? Number(app.store.db.prepare("UPDATE gmaps_saves SET status=CASE WHEN status='skipped' THEN 'pending' ELSE status END, next_try_at=NULL WHERE status IN ('failed','skipped') AND destination_id IN (SELECT id FROM gmaps_destinations WHERE collection_id=?)").run(Number(b.collection ?? 1)).changes) : 0;
+          const items = b.items_now ? Number(app.store.db.prepare("UPDATE gmaps_saves SET status=CASE WHEN status='skipped' THEN 'pending' ELSE status END, attempts=0, next_try_at=NULL WHERE status IN ('failed','skipped') AND destination_id IN (SELECT id FROM gmaps_destinations WHERE collection_id=?)").run(Number(b.collection ?? 1)).changes) : 0;
           if (b.run !== false) setTimeout(() => void cycle('gmaps retry'), 10);
           return json(res, 200, { ok: true, reset: Number(r.changes), items_now: items });
         }

@@ -122,6 +122,16 @@ export interface Decision {
 /** Two same-named options this close are the same neighbourhood: saving the better one as approximate is still useful. */
 const MEDIUM_MAX_KM = 25;
 
+/** The same country under its different spellings (OpenStreetMap writes "United States", a Google address ends ", USA"). */
+const COUNTRY_ALIASES = [['united states', 'united states of america', 'usa', 'us'], ['united kingdom', 'uk', 'great britain', 'england', 'scotland', 'wales'], ['turkey', 'turkiye'],
+  ['czechia', 'czech republic'], ['south korea', 'korea', '대한민국', '한국'], ['japan', '日本'], ['china', '中国', '中國'], ['taiwan', '台灣', '台湾', '臺灣'], ['united arab emirates', 'uae'],
+  ['netherlands', 'the netherlands', 'holland'], ['vietnam', 'viet nam'], ['myanmar', 'burma'], ['ivory coast', "cote d'ivoire"], ['russia', 'russian federation']];
+export function inCountry(displayName: string, country: string): boolean {
+  const d = norm(displayName), c = norm(country);
+  const names = COUNTRY_ALIASES.find((g) => g.some((a) => norm(a) === c)) ?? [country];
+  return names.some((a) => { const n = norm(a); return n.length <= 3 ? new RegExp(`(^|[^\\p{L}])${n}([^\\p{L}]|$)`, 'u').test(d) : d.includes(n); });
+}
+
 export function decide(clue: Clue, rankedIn: Candidate[]): Decision {
   // A feature and the park/reserve named after it ("Skogafoss" waterfall + "Skógafoss" nature reserve, seen live
   // 2026-11-10) are one place, not an ambiguity: prefer the specific feature unless the clue asks for the area.
@@ -163,7 +173,7 @@ export function decide(clue: Clue, rankedIn: Candidate[]): Decision {
     const nameSim = top.scoreParts?.nameSim ?? 0;
     if (nameSim < 0.8) return { ranked, why: `AI suggestion "${clue.text}" only loosely matches "${top.name}" on the map` };
     if (top.scoreParts?.context !== 1) return { ranked, why: `AI suggestion "${clue.text}" could not be placed inside ${clue.area ?? 'a stated city/country'}` };
-    if (clue.aiCountry && !norm(top.displayName).includes(norm(clue.aiCountry))) return { ranked, why: `AI said ${clue.aiCountry}, but the map match "${top.displayName}" is elsewhere` };
+    if (clue.aiCountry && !inCountry(top.displayName, clue.aiCountry)) return { ranked, why: `AI said ${clue.aiCountry}, but the map match "${top.displayName}" is elsewhere` };
     if (top.isArea) return { ranked, why: `AI suggestion "${clue.text}" is a whole area, not a specific place` };
     if (second && haversineKm(top, second) > 1.5 && (second.scoreParts?.nameSim ?? 0) >= 0.85 && (second.scoreParts?.context ?? 0) === 1) {
       const why = `AI suggestion is ambiguous: "${top.displayName}" vs "${second.displayName}"`;
@@ -378,6 +388,7 @@ export async function resolveReel(evidence: TextEvidence[], deps: ResolveDeps, o
   const approxReview: string[] = [];
   const medium: { clue: Clue; d: Decision; ranked: Candidate[]; place: NewPlace; cue: { cue: string | null; source: SourceKind | null } }[] = [];
   const unresolvedClues = new Map<string, Clue>();
+  const unresolvedRanked = new Map<string, { why: string; ranked: Candidate[] }>();
 
   // 1) Context areas ("in Lisbon", "📍 X, Tel Aviv") constrain the specific lookups.
   const ctx: Ctx[] = [];
@@ -460,7 +471,7 @@ export async function resolveReel(evidence: TextEvidence[], deps: ResolveDeps, o
       // Offer only options inside the Reel's area (Route 66 in the US is no option for a Liechtenstein hiking Reel).
       const inArea = ranked.filter((c) => (c.scoreParts?.context ?? 0.5) > 0);
       if (significant || inArea.length) review.push(...inArea.slice(0, 3));
-      if (significant) { unresolvedSignificant.push(`"${clue.text}": ${d.why}`); unresolvedClues.set(clue.text, clue); }
+      if (significant) { unresolvedSignificant.push(`"${clue.text}": ${d.why}`); unresolvedClues.set(clue.text, clue); unresolvedRanked.set(clue.text, { why: d.why, ranked }); }
       continue;
     }
     if (links.some((l) => l.place.place_id === d.confirmed!.ref)) continue;
@@ -497,7 +508,7 @@ export async function resolveReel(evidence: TextEvidence[], deps: ResolveDeps, o
     if (p.role !== 'featured' || !p.address || p.confidence === 'low') continue;
     if (links.some((l) => l.clueText === p.name || nameSimilarity(l.place.name, p.name) >= 0.85)) continue;
     const hits = await deps.geocoder.search(p.city && !norm(p.address).includes(norm(coreArea(p.city.split(',').pop()!.trim()))) ? `${p.address}, ${p.city}` : p.address, { limit: 3 });
-    const h = hits.find((x) => !x.isArea && (!p.country || norm(x.displayName).includes(norm(p.country))));
+    const h = hits.find((x) => !x.isArea && (!p.country || inCountry(x.displayName, p.country)));
     if (!h) { notes.push(`Address "${p.address}" for "${p.name}" not found on the map.`); continue; }
     const exactAddress = /\b(house|building|residential|commercial|retail)\b/.test(h.category) || /^\d/.test(h.displayName) || h.category === 'other';
     links.push({
@@ -519,7 +530,7 @@ export async function resolveReel(evidence: TextEvidence[], deps: ResolveDeps, o
     // The estimate must lie in the country the AI itself named (a mountain-pass estimate landed 100 km inside the neighbouring country — seen live).
     if (p.country && deps.locate) {
       const at = await deps.locate(p.lat, p.lon).catch(() => null);
-      if (at?.country && norm(at.country) !== norm(p.country) && !norm(at.country).includes(norm(p.country)) && !norm(p.country).includes(norm(at.country))) { notes.push(`AI estimate for "${p.name}" lies in ${at.country}, not ${p.country} — ignored.`); continue; }
+      if (at?.country && !inCountry(at.country, p.country) && !inCountry(p.country, at.country)) { notes.push(`AI estimate for "${p.name}" lies in ${at.country}, not ${p.country} — ignored.`); continue; }
     }
     // Check against the AI's own city/country (hashtags like "#TokyoFood" were geocoded to tiny unrelated places — seen live).
     const own = [p.city, p.city?.split(',').pop(), p.country].filter(Boolean).map((x) => norm(coreArea(x!.trim())));
@@ -587,6 +598,19 @@ export async function resolveReel(evidence: TextEvidence[], deps: ResolveDeps, o
     const hit = links.length ? refs2.find((r) => nameSimilarity(c.text, r) >= 0.6 || letterSimilarity(c.text, r) >= 0.75 || norm(c.text).includes(norm(r)) || norm(r).includes(norm(c.text))
       || (core(c.text).length >= 4 && core(r).length >= 4 && letterSimilarity(core(c.text), core(r)) >= 0.75)) : undefined;
     if (hit) { notes.push(`"${c.text}" is a copy of "${hit}" (already found) — not counted separately.`); unresolvedSignificant.splice(i, 1); continue; }
+    // (1b) The lookup for this text leads back to a pin this Reel already has (seen live: a dish bullet whose best
+    //      match was another branch of the pinned restaurant; a mountain's local-script name that was "ambiguous"
+    //      between the pinned peak and a namesake). Only when the text itself did not match a DIFFERENT place well:
+    //      a second listed branch ("X Shibuya" next to "X Shinjuku") has a strong match of its own and stays open.
+    const ur = unresolvedRanked.get(c.text);
+    if (ur && links.length) {
+      const isPin = (t: Candidate, nearKm = 0) => links.find((l) => l.place.confidence === 'confirmed' && (l.place.place_id === t.ref || (!!t.googlePlaceId && l.place.google_place_id === t.googlePlaceId) || haversineKm(l.place, t) < nearKm));
+      const weak = ur.why.startsWith('best name match is weak'), amb = ur.why.startsWith('ambiguous:');
+      const top = ur.ranked[0];
+      const back = top && weak ? isPin(top) ?? links.find((l) => l.place.confidence === 'confirmed' && nameSimilarity(l.place.name, top.name) >= 0.6 && haversineKm(l.place, top) < 50)
+        : amb ? ur.ranked.slice(0, 2).map((t) => isPin(t, 0.3)).find(Boolean) : undefined;
+      if (back) { notes.push(`"${c.text}" leads back to "${back.place.name}" (already pinned) — not counted separately.`); unresolvedSignificant.splice(i, 1); continue; }
+    }
     // Caption phrases OpenAI read in full and did not list as places ("Drink Bar" on a menu) — not open questions.
     if (!ocrOnly && opts.aiPlaces?.length && links.length && !c.explicit && !opts.aiPlaces.some((p) => nameSimilarity(p.name, c.text) >= 0.6 || letterSimilarity(p.name, c.text) >= 0.75)) { notes.push(`"${c.text}": OpenAI read the caption and did not list it as a place — ignored.`); unresolvedSignificant.splice(i, 1); continue; }
     if (ocrOnly && opts.aiPlaces && !c.explicit) { notes.push(`On-screen "${c.text}": OpenAI read it and did not list it as a place — ignored.`); unresolvedSignificant.splice(i, 1); continue; }

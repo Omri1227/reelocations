@@ -190,6 +190,7 @@ header.incountry #gsync{width:28px;padding:0;justify-content:center}header.incou
     <button id="ai" class="hbtn" hidden aria-label="AI Balance: about how many more Reels can be processed">AI Balance <b id="ai-n">…</b></button>
     <a id="gsync" class="hbtn" href="/setup" hidden title="Google Maps sync"><i></i><span>Maps</span></a>
     <span id="live" class="hbtn dotonly" title="Live updates" aria-label="Live updates"><i></i></span>
+    <a id="tosetup" class="hbtn dotonly" href="/setup" title="Setup and settings" aria-label="Setup and settings: Shortcut, Google Maps, sharing, account"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></a>
   </header>
   <nav class="tabs" aria-label="View">
     <div class="seg" role="tablist" aria-label="View">
@@ -314,7 +315,7 @@ header.incountry #gsync{width:28px;padding:0;justify-content:center}header.incou
       (p.can_delete ? '<button class="pdel" data-del="' + esc(p.id) + '" aria-label="Delete ' + esc(p.name) + '">🗑 Delete</button>' : '') + '</div>';
     return h + '</div>';
   }
-  var sig = function (p) { return [p.lat, p.lon, p.name, p.category, p.cuisine, p.confidence, p.google_place_id, p.can_delete, p.starred, p.is_new, p.reels.length, p.reels.map(function (r) { return (r.image || '') + (r.cue || ''); }).join('')].join('|'); };
+  var sig = function (p) { return [p.lat, p.lon, p.name, p.category, p.cuisine, p.confidence, p.google_place_id, p.can_delete, p.starred, p.is_new, p.locality, p.country, p.kind, p.line ? p.line.length : 0, p.reels.length, p.reels.map(function (r) { return (r.image || '') + (r.cue || ''); }).join('')].join('|'); };
 
   function drawCountryMarkers(fit) {
     Object.keys(markers).forEach(function (id) { removeMarker(id); });
@@ -434,8 +435,8 @@ header.incountry #gsync{width:28px;padding:0;justify-content:center}header.incou
       var cs = countries(), n = visible().length;
       h += '<div class="sec">' + cs.length + ' countr' + (cs.length === 1 ? 'y' : 'ies') + ' · ' + n + ' place' + (n === 1 ? '' : 's') + '</div>';
       cs.forEach(function (c) {
-        var st = syncOf(c.key);
-        h += '<button class="row" role="listitem" data-c="' + esc(c.key) + '"><span class="flag">' + flag(c.cc) + '</span><span class="t"><b>' + esc(c.name) + (st ? '<span class="dot ' + esc(st.status) + '" title="Google Maps: ' + esc(st.status === 'ok' ? 'up to date' : st.status === 'pending' ? 'pending' : 'needs attention') + '"></span>' : '') + '</b><span>' + esc(topLocalities(c.places)) + '</span></span><span class="cnt">' + c.places.length + '</span></button>';
+        var st = syncOf(c.key), nn = c.places.filter(function (p) { return p.is_new; }).length;
+        h += '<button class="row" role="listitem" data-c="' + esc(c.key) + '"><span class="flag">' + flag(c.cc) + '</span><span class="t"><b>' + esc(c.name) + (st ? '<span class="dot ' + esc(st.status) + '" title="Google Maps: ' + esc(st.status === 'ok' ? 'up to date' : st.status === 'pending' ? 'pending' : 'needs attention') + '"></span>' : '') + (nn ? '<span class="newb" title="' + nn + ' new place' + (nn === 1 ? '' : 's') + ' you have not opened yet">' + nn + ' new</span>' : '') + '</b><span>' + esc(topLocalities(c.places)) + '</span></span><span class="cnt">' + c.places.length + '</span></button>';
       });
       if (!cs.length) h += '<div class="empty">No saved places' + (S.type !== 'all' ? ' of this type' : '') + ' yet. Share a Reel with the “Save Reel to Map” Shortcut.</div>';
       if (cs.length > 1) h += '<div class="hint">Long-press a country to move it.' + (S.data.country_order.length ? ' <button class="linkbtn" id="resetOrder" style="background:none;border:0;color:var(--acc);font:inherit;text-decoration:underline;padding:0;cursor:pointer">Reset order</button>' : '') + '</div>';
@@ -756,6 +757,7 @@ header.incountry #gsync{width:28px;padding:0;justify-content:center}header.incou
     drag.row.classList.remove('dragging'); drag.row.style.transform = '';
     drag = null; dragJustEnded = Date.now();
     saveOrder(rowsC().map(function (r) { return r.getAttribute('data-c'); }));
+    setTimeout(function () { load('after-drag'); }, 2000);   // an update that arrived during the drag was skipped: fetch it once the new order is saved
   }
   function saveOrder(order) {
     // Countries hidden by the current filter keep their place after the ones shown.

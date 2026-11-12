@@ -280,7 +280,18 @@ export class Store {
       for (const t of ['reel_places', 'candidates', 'media', 'shares']) this.db.prepare(`DELETE FROM ${t} WHERE reel_key=?`).run(k);
       this.db.prepare('DELETE FROM reels WHERE reel_key=?').run(k);
       this.db.prepare('DELETE FROM events WHERE scope=?').run(`note:${k}`); // notes typed in review
+      for (const p of ['ai:sig:', 'ai:result:', 'ai:wait:', 'page:tried:']) this.db.prepare('DELETE FROM kv WHERE k=?').run(p + k);
     }
+    // The collection's Google Maps list: the stored Google session, its queue and the fresh-start date. Without this a
+    // later collection that gets the same id would inherit a connected Google account.
+    if (this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='gmaps_destinations'").get()) {
+      for (const d of this.db.prepare('SELECT id, state_file FROM gmaps_destinations WHERE collection_id=?').all(collectionId) as any[]) {
+        if (d.state_file) files.add(d.state_file);
+        this.db.prepare('DELETE FROM gmaps_saves WHERE destination_id=?').run(d.id);
+      }
+      this.db.prepare('DELETE FROM gmaps_destinations WHERE collection_id=?').run(collectionId);
+    }
+    this.db.prepare('DELETE FROM kv WHERE k=?').run(`gmaps:cutoff:${collectionId}`);
     for (const pid of placeIds) {
       const left = (this.db.prepare('SELECT COUNT(*) n FROM reel_places WHERE place_id=?').get(pid) as any).n;
       if (!left) { this.db.prepare('DELETE FROM places WHERE place_id=?').run(pid); this.db.prepare('DELETE FROM kv WHERE k=?').run(`gmatch:${pid}`); }
@@ -458,8 +469,8 @@ export class Store {
       .run(f.status, f.reason, f.metadata === undefined ? null : JSON.stringify(f.metadata), f.capabilities ? JSON.stringify(f.capabilities) : null,
         f.evidence === undefined ? null : JSON.stringify(f.evidence), nowIso(), key);
   }
-  setReelError(key: string, err: string, maxDelayMin = 360) {
-    const r = this.getReel(key); const attempts = (r?.attempts ?? 0) + 1;
+  setReelError(key: string, err: string, maxDelayMin = 360, attemptsBefore?: number) {
+    const r = this.getReel(key); const attempts = (attemptsBefore ?? r?.attempts ?? 0) + 1;
     const delayMin = Math.min(maxDelayMin, 5 * 2 ** (attempts - 1));
     const next = new Date(Date.now() + delayMin * 60_000).toISOString();
     this.db.prepare(`UPDATE reels SET status='error', last_error=?, attempts=?, next_attempt_at=?, updated_at=? WHERE reel_key=?`).run(err, attempts, next, nowIso(), key);

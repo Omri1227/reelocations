@@ -132,6 +132,17 @@ export class Accounts {
     // Their credentials for this collection stop working at once; their own map destination is disconnected.
     this.db.prepare('UPDATE credentials SET revoked_at=? WHERE collection_id=? AND user_id=? AND revoked_at IS NULL').run(nowIso(), collectionId, userId);
     this.db.prepare('UPDATE destinations SET disconnected_at=? WHERE collection_id=? AND user_id=? AND disconnected_at IS NULL').run(nowIso(), collectionId, userId);
+    this.dropGmapsOf(userId, collectionId);
+    // The invitation they joined with must not let them back in.
+    this.db.prepare('UPDATE invitations SET revoked_at=COALESCE(revoked_at, ?) WHERE collection_id=? AND used_by=?').run(nowIso(), collectionId, userId);
+  }
+  /** The collection's Google Maps list is saved with ONE member's Google session: when that member goes, it stops and the session is deleted. */
+  private dropGmapsOf(userId: number, collectionId: number) {
+    if (!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='gmaps_destinations'").get()) return;
+    for (const d of this.db.prepare('SELECT id, state_file FROM gmaps_destinations WHERE collection_id=? AND user_id=? AND disconnected_at IS NULL').all(collectionId, userId) as any[]) {
+      try { if (d.state_file) fs.rmSync(d.state_file, { force: true }); } catch { /* already gone */ }
+      this.db.prepare("UPDATE gmaps_destinations SET disconnected_at=?, status='disconnected' WHERE id=?").run(nowIso(), d.id);
+    }
   }
 
   /**
@@ -151,6 +162,8 @@ export class Accounts {
     this.db.prepare('DELETE FROM memberships WHERE collection_id=? AND user_id=?').run(collectionId, userId);
     this.db.prepare('UPDATE credentials SET revoked_at=COALESCE(revoked_at, ?) WHERE collection_id=? AND user_id=?').run(ts, collectionId, userId);
     this.db.prepare('UPDATE destinations SET disconnected_at=COALESCE(disconnected_at, ?) WHERE collection_id=? AND user_id=?').run(ts, collectionId, userId);
+    this.dropGmapsOf(userId, collectionId);
+    this.db.prepare('UPDATE invitations SET revoked_at=COALESCE(revoked_at, ?) WHERE collection_id=? AND used_by=?').run(ts, collectionId, userId);
     this.db.prepare('UPDATE sessions SET collection_id=NULL WHERE user_id=? AND collection_id=?').run(userId, collectionId);
     this.db.prepare('DELETE FROM user_place_state WHERE user_id=? AND collection_id=?').run(userId, collectionId);
     this.db.prepare('DELETE FROM user_collection_state WHERE user_id=? AND collection_id=?').run(userId, collectionId);
@@ -232,7 +245,8 @@ export class Accounts {
     return this.store.tx(() => {
       const inv = this.db.prepare('SELECT * FROM invitations WHERE code_hash=?').get(h) as any;
       if (!inv || inv.revoked_at || inv.expires_at < nowIso()) throw Object.assign(new Error('this invitation is not valid (expired or revoked)'), { status: 400 });
-      if (inv.used_by && inv.used_by !== userId) throw Object.assign(new Error('this invitation was already used'), { status: 400 });
+      // Single use: the person who used it may open the link again while still a member; nobody joins with it twice.
+      if ((inv.used_by && inv.used_by !== userId) || (inv.used_at && !this.role(userId, inv.collection_id))) throw Object.assign(new Error('this invitation was already used'), { status: 400 });
       if (!this.role(userId, inv.collection_id)) this.db.prepare("INSERT INTO memberships(collection_id,user_id,role,created_at) VALUES(?,?,'member',?)").run(inv.collection_id, userId, nowIso());
       this.db.prepare('UPDATE invitations SET used_by=?, used_at=COALESCE(used_at, ?) WHERE code_hash=?').run(userId, nowIso(), h);
       return Number(inv.collection_id);

@@ -1,7 +1,22 @@
 # reelocations
 
-Save an Instagram Reel from your iPhone and find the place later — on a map of everything you saved, grouped by
-country and city, and in the **Google Maps app**.
+[![CI](https://github.com/Omri1227/reelocations/actions/workflows/ci.yml/badge.svg)](https://github.com/Omri1227/reelocations/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Node 24](https://img.shields.io/badge/node-%E2%89%A524-339933)
+![Runtime dependencies: 4](https://img.shields.io/badge/runtime%20deps-4-informational)
+
+**Share an Instagram Reel from your iPhone; a minute later the place it shows is a pin on your own map and a saved
+place in the Google Maps app.**
+
+<p>
+  <img src="docs/screenshots/1-countries.png" width="230" alt="Countries list with the map and New badges">
+  <img src="docs/screenshots/3-place.png" width="230" alt="Place card with Open in Google Maps">
+  <img src="docs/screenshots/6-review.png" width="230" alt="Review Queue entry with options and Google Maps links">
+</p>
+
+Travel and food Reels name places in captions, on-screen text or speech — and then they are lost in a "Saved" folder
+with no map. reelocations turns each shared Reel into the exact Google Maps listing (the right branch of a chain
+included), grouped by country and city, with the Reel link and a quote that reminds you why you saved it.
 
 reelocations is **self-hosted**: each installer runs their own server (Railway or any Docker host), creates their own
 Google and OpenAI credentials, and each person generates their own personal Shortcut link on that installation.
@@ -20,6 +35,36 @@ Nothing is shared with the authors or with other installations.
   (*Reelocations*, beta), and a desktop publisher can keep one Google My Map per country. See
   [Google Maps](#google-maps).
 
+## Engineering notes
+
+What is interesting in this codebase, with the file to read for each:
+
+- **A cost-ordered pipeline.** Each Reel goes through the cheapest method that can settle it: caption and note text →
+  on-device OCR of the screenshot → speech → and only then a paid AI call, inside a hard US$3/month cap. Every paid
+  answer is stored and replayed, so re-processing costs nothing. (`src/pipeline.ts`, `src/budget.ts`)
+- **The AI is never trusted on its own.** A model suggestion is a *clue*; it becomes a pin only when OpenStreetMap or
+  Google Places confirms the name inside the stated city or country. The outcome has three levels — **pin**,
+  **Approximate pin** (saved, but still asked about) and **Review Queue** — so a wrong guess is visible instead of
+  silent. (`src/resolve/resolver.ts`)
+- **The right branch, not just the right chain.** Pins carry a Google Place ID. Before a listing is saved to Google
+  Maps, the place card's name and address are compared with the pin (house numbers, street words, postal codes are
+  not house numbers). A mismatch is held back and asked in the Review Queue. (`src/geo/googleMatch.ts`,
+  `src/sync/savedList.ts`)
+- **Writing to Google Maps without an API.** Google has no API for saved lists, so the server drives Google Maps' own
+  web UI in headless Chromium with the user's session: a queue with back-off, one save per listing, a "fresh start"
+  date so old places are never bulk-saved, and a visible *needs sign-in* state. (`src/sync/savedListRunner.ts`)
+- **Quality is measured, not asserted.** A labelled set of real Reels plus written fixtures, a holdout split fixed by
+  hash before tuning, and a harness that replays the real pipeline against cached lookups (deterministic, US$0).
+  Current numbers: **95.7 %** exact place and branch, **97.9 %** pin precision; the last round cut needless reviews
+  from 19 % to 14 % of Reels with no change in accuracy. (`scripts/eval-quality.ts`, [docs/QUALITY-RESEARCH.md](docs/QUALITY-RESEARCH.md))
+- **A small stack on purpose.** Node 24 runs the TypeScript sources directly (no build step), SQLite through
+  `node:sqlite`, four runtime dependencies, a single-file web app without a framework, live updates over SSE.
+- **Several people, isolated.** Google Sign-In, collections with invitations, hashed and revocable credentials, a
+  membership check on every route, and tests for isolation, leaving and account deletion. (`src/accounts.ts`,
+  `test/accounts.test.ts`)
+- **106 tests, all offline.** Recorded OpenStreetMap answers, a fake Google sign-in, a fake My Maps and a fake Google
+  Maps list; `test/regressions.test.ts` holds one test per bug found in review.
+
 ## Screenshots
 
 From `npm run demo` (synthetic data) in iPhone-size Chrome; regenerate with `node scripts/screenshots.ts "<demo link>"`.
@@ -33,21 +78,6 @@ From `npm run demo` (synthetic data) in iPhone-size Chrome; regenerate with `nod
 ## How the pieces fit
 
 ![Architecture: iPhone Shortcut → server on Railway (intake, pipeline, SQLite, web and APIs) → web app, Google Maps list and the optional desktop My Maps publisher](docs/architecture.svg)
-
-```
-iPhone Shortcut ── POST /api/intake/<personal token> ──►  Server (src/server.ts, Node 24, SQLite; Railway in production)
-                                                           ├─ pipeline: clues → OpenStreetMap / Google Places → [OCR,
-                                                           │   speech, AI fallback] → pins, Approximate pins, Review Queue
-                                                           ├─ accounts: Google Sign-In, collections, invitations,
-                                                           │   revocable Shortcut / publisher credentials
-                                                           ├─ web app (src/web/map.html) + live updates (SSE)
-                                                           ├─ Google Maps list publisher (beta): headless Chromium with
-                                                           │   the account's own session → Save → "Reelocations"
-                                                           └─ publisher API (/api/publisher/*)
-                                                                        │ export + live events
-Desktop publisher (optional; src/cli.ts publish, your own Chrome) ◄─────┘
-   └─► Google My Maps: "Reels · <flag> <country>" (one map per country, a layer per city) ─► Google Maps app
-```
 
 The full flow and every credential: [docs/reelocations-architecture.pdf](docs/reelocations-architecture.pdf)
 (source: `docs/architecture.html`; the diagram above is `docs/architecture.svg`).
@@ -63,8 +93,8 @@ npm test          # offline (recorded OSM answers, fake Google sign-in, fake My 
 npm run demo      # server with SYNTHETIC data → open the printed http://127.0.0.1:8090/auth/dev?t=… link
 ```
 
-The demo creates `data/demo/` with seven well-known public places in three countries, two Reels in the Review Queue,
-one starred and one New place, and signs you in as "Demo User" through a link that exists only in demo mode. Map tiles
+The demo creates `data/demo/` with well-known public places in four countries, three Reels in the Review Queue (one
+with an Approximate pin), one starred place and New places, and signs you in as "Demo User" through a link that exists only in demo mode. Map tiles
 come from openstreetmap.org when you are online.
 
 Other entry points:
@@ -120,7 +150,8 @@ To change the link later (for example after revoking it in Setup), edit the Shor
 
 1. **Sign up** with Google on the website, then install the Shortcut as described above. In Instagram: Share →
    *Save Reel to Map*.
-2. Open the website: countries → places → details (Open in Google Maps, the Reel, a screenshot, Delete).
+2. Open the website: countries → places → details (Open in Google Maps, the Reel, a screenshot, Delete). A country
+   shows **N new** while it has places you have not opened yet; the gear button opens Setup.
    **Swipe left** to delete, **long-press** to star, **Nearby** for what is around you, **Review Queue** for undecided
    Reels. An **Approximate** pin has a *Why approximate? Review* button that opens its own Review Queue entry.
    In the Review Queue, an option for a Reel that already has a pin comes with **Replace “…”** (pre-selected: the pin it
@@ -160,9 +191,10 @@ Details and operations: [docs/HOSTED.md](docs/HOSTED.md).
 
 ## Tests and checks
 
-- `npm test` — unit, pipeline scenarios, hosted server (accounts, isolation, sharing, leaving, account deletion,
+- `npm test` — 106 tests, offline: unit, pipeline scenarios, hosted server (accounts, isolation, sharing, leaving, account deletion,
   per-collection listing choices, approximate pins, Nearby/New/Star APIs), My Maps grouping with a fake My Maps, the
-  Google Maps list queue and branch check.
+  Google Maps list queue and branch check, and one regression test per bug found in review. The same tests and the
+  type check run on every push (`.github/workflows/ci.yml`).
 - Browser checks in Chrome's iPhone emulation, against a **local copy** of a database:
   `node scripts/local-ui-server.ts <copy>/reel-maps.sqlite 18791`, then `scripts/verify-ui.ts` and
   `scripts/verify-features.ts`.

@@ -81,7 +81,9 @@ export class Http {
       }
       const body = await res.text();
       if (res.ok || opts.acceptStatus?.includes(res.status)) {
-        if (res.ok && cacheKey && this.o.store) this.o.store.cachePut(cacheKey, body);
+        // An outage page or a "timed out" answer served with status 200 (Overpass does this) must not be replayed for weeks.
+        const bad = /^\s*<(?:!doctype|html)/i.test(body) || /"remark"\s*:\s*"[^"]*(?:runtime error|timed out)/i.test(body.slice(-800));
+        if (res.ok && !bad && cacheKey && this.o.store) this.o.store.cachePut(cacheKey, body);
         return { status: res.status, body, headers: res.headers };
       }
       lastErr = new HttpError(res.status, body, url);

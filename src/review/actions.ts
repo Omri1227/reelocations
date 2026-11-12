@@ -27,7 +27,15 @@ export function guessReplaced(store: Store, key: string, c: Candidate): string |
   if (c.replacesPlaceId || c.confirmsApproxPlaceId || c.replacesApproxPlaceId) return null;
   const links = store.linksForReel(key) as any[];
   if (!links.length) return null;
-  if (links.length === 1) return links[0].place_id;
+  if (links.length === 1) {
+    // The Reel's only pin — unless this option answers ANOTHER place the Reel lists ("📍 A" pinned, "📍 B" still
+    // open): then it is an addition, and replacing would remove the correct pin A.
+    const l = links[0], ev = store.getReel(key)?.evidence_json;
+    const listed: any[] = ev ? (JSON.parse(ev)?.clues ?? []) : [];
+    const other = !!c.clueText && l.confidence === 'confirmed' && haversineKm(l, c) > 2 && nameSimilarity(l.name, c.clueText) < 0.6
+      && listed.some((q) => q.explicit && q.kind !== 'area' && q.text === c.clueText) && listed.some((q) => q.explicit && q.text !== c.clueText && nameSimilarity(q.text, l.name) >= 0.6);
+    return other ? null : l.place_id;
+  }
   const scored = links.map((l) => ({ l, km: haversineKm(l, c), sim: Math.max(nameSimilarity(l.name, c.name), c.clueText ? nameSimilarity(l.name, c.clueText) : 0, ...(c.names ?? []).map((n) => nameSimilarity(l.name, n))) }));
   const hit = scored.filter((s) => s.km <= 2 || s.sim >= 0.6 || (s.l.confidence === 'approximate' && s.km <= 25))
     .sort((x, y) => (x.km <= 2 ? 0 : 1) - (y.km <= 2 ? 0 : 1) || y.sim - x.sim || x.km - y.km)[0];
@@ -85,8 +93,11 @@ export async function chooseCandidate(store: Store, deps: ResolveDeps, key: stri
     settleApproxQuestion(store, key, c.replacesApproxPlaceId, store.candidatesFor(key), `you chose ${place.name}`);
     return { place, notes: [...notes, 'approximate pin replaced'] };
   }
-  const remaining = cands.filter((x) => x.clueText && x.clueText !== c.clueText && x.ref !== c.ref);
-  store.replaceCandidates(key, opts.keepOpen ? cands.filter((x) => x.ref !== c.ref) : remaining);
+  // Questions about a pin that is no longer on this Reel (it was just replaced) go with it.
+  const pins = new Set((store.linksForReel(key) as any[]).map((l) => l.place_id));
+  const live = cands.filter((x) => { const pid = x.replacesPlaceId ?? x.confirmsApproxPlaceId ?? x.replacesApproxPlaceId; return !pid || pins.has(pid); });
+  const remaining = live.filter((x) => x.clueText && x.clueText !== c.clueText && x.ref !== c.ref);
+  store.replaceCandidates(key, opts.keepOpen ? live.filter((x) => x.ref !== c.ref) : remaining);
   const stillOpen = opts.keepOpen || remaining.length > 0;
   store.setReelResult(key, { status: stillOpen ? 'needs_review' : 'resolved', reason: stillOpen ? `you confirmed ${place.name}; other clues still open` : `confirmed by you: ${place.name}` });
   return { place, notes };

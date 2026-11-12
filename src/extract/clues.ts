@@ -64,6 +64,24 @@ function splitCjk(s: string): { text: string; area?: string; alias?: string } | 
   return { text: clean(out), area: clean(inner), alias: latin };
 }
 
+/**
+ * A whole sentence after a pin emoji is commentary, not a name ("📌 please save this for later", seen live in Japanese).
+ * Japanese/Chinese: polite sentence endings, or a long run that is mostly hiragana (names are kanji/katakana).
+ * Latin: six or more words that are mostly lower-case.
+ */
+export function looksLikeSentence(s: string): boolean {
+  const t = s.replace(/[\p{Extended_Pictographic}️\s]+/gu, ' ').trim();
+  if (/[\p{Script=Hiragana}\p{Script=Han}\p{Script=Katakana}]/u.test(t)) {
+    const hira = (t.match(/\p{Script=Hiragana}/gu) ?? []).length, all = [...t.replace(/\s/g, '')].length;
+    if (/(?:です|ます|ました|ません|ください|下さい|でした|ですね|ですよ|しょう)[。！!\s]*$/u.test(t)) return true;
+    return all >= 12 && hira / all >= 0.5;
+  }
+  const words = t.split(/\s+/);
+  return words.length >= 6 && words.filter((w) => /^\p{Ll}/u.test(w)).length >= words.length * 0.6;
+}
+/** A bullet that describes instead of naming: "Their signature tendon", "Our tasting menu". */
+const DESCRIBES = /^(?:their|our|its|his|her|your|my|this|these|those)\s/i;
+
 /** Words that look capitalised at sentence start but are not places. */
 const NOISE = new Set(['the', 'this', 'that', 'i', 'we', 'my', 'our', 'best', 'top', 'amazing', 'beautiful', 'day', 'sunset', 'sunrise', 'save', 'follow', 'link', 'bio', 'reel', 'reels', 'instagram', 'travel', 'nature', 'hiking', 'hike', 'trip', 'explore', 'wanderlust', 'views', 'weekend', 'summer', 'winter', 'spring break', 'fyp', 'viral', 'trending', 'love', 'tag', 'share', 'comment', 'it', 'here', 'there', 'just', 'one', 'part',
   // caption labels ("📍Address", "⏰Opening Hours") — the value is on the next line
@@ -82,7 +100,8 @@ function clean(s: string): string {
 
 function meaningful(name: string): boolean {
   const n = norm(name);
-  if (n.length < 3) return false;
+  // Two characters are a complete name in Chinese/Japanese/Korean (京都, 奈良); in other scripts they are noise.
+  if (n.length < (/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(n) ? 2 : 3)) return false;
   const first = n.split(' ')[0];
   if (NOISE.has(n) || (n.split(' ').length === 1 && NOISE.has(first))) return false;
   return true;
@@ -167,6 +186,8 @@ export function extractClues(evidence: TextEvidence[]): ExtractResult {
           continue;
         }
         const { text, area } = splitPlaceArea(raw);
+        // The name part only: "📍 Lake X — at 3,000 m the yurts are…" keeps "Lake X"; a whole sentence is commentary.
+        if (looksLikeSentence(text)) continue;
         const kind = categoryFromText(text) === 'hike' ? 'trail' : 'place';
         add({ kind, text, area, categoryHint: categoryFromText(pin[1]), source: src, explicit: true, role: 'featured', evidence: line.trim() });
         if (area && meaningful(area)) add({ kind: 'area', text: area, source: src, explicit: true, role: 'featured', evidence: line.trim() });
@@ -192,8 +213,10 @@ export function extractClues(evidence: TextEvidence[]): ExtractResult {
         const rest = li[1].slice(li[1].indexOf(head) + head.length);
         // A menu item, opening hours or a feature bullet ("Traditional ryokan stay with tatami rooms") is not a place.
         const lower = head.split(/\s+/).filter((w) => /^\p{Ll}/u.test(w) && !/^(de|del|la|le|du|di|da|do|dos|das|of|the|al|el|y|and|des|degli|dei)$/i.test(w)).length;
-        if (PRICE_OR_TIME.test(rest) || lower >= 2) continue;
-        if (head && head.split(' ').length <= 7 && /\p{Lu}|[א-ת]/u.test(head)) {
+        if (PRICE_OR_TIME.test(rest) || lower >= 2 || DESCRIBES.test(head)) continue;
+        // Scripts without capital letters (Japanese, Chinese, Korean, Thai, Arabic): a short item that is not a sentence.
+        const caseless = /^[\p{Lo}\p{N}\s・ー·-]{2,14}$/u.test(head) && !looksLikeSentence(head) && !/[\p{Script=Hiragana}]{3}/u.test(head);
+        if (head && head.split(' ').length <= 7 && (/\p{Lu}|[א-ת]/u.test(head) || caseless)) {
           const { text, area } = splitPlaceArea(head);
           add({ kind: categoryFromText(text) === 'hike' ? 'trail' : 'place', text, area, categoryHint: categoryFromText(li[1]), source: src, explicit: true, role: 'listed', evidence: line.trim() });
           continue;

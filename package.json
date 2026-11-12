@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Self-hosted: share an Instagram Reel from iPhone and find the place later, on your own map and in Google Maps.",
   "scripts": {
-    "test": "node --test test/unit.test.ts test/grouped.test.ts test/google.test.ts test/caption-list.test.ts test/scenarios.test.ts test/e2e.test.ts test/hosted.test.ts test/accounts.test.ts test/aiusage.test.ts test/gmaps-list.test.ts",
+    "test": "node --test test/unit.test.ts test/grouped.test.ts test/google.test.ts test/caption-list.test.ts test/scenarios.test.ts test/e2e.test.ts test/hosted.test.ts test/accounts.test.ts test/aiusage.test.ts test/gmaps-list.test.ts test/regressions.test.ts",
     "test:record": "node scripts/record.ts",
     "typecheck": "tsc -p .",
     "smoke": "node scripts/smoke.ts",
@@ -22,7 +22,15 @@
     "start": "node src/server.ts",
     "railway:plan": "node scripts/railway-config.ts plan"
   },
-  "keywords": [],
+  "keywords": [
+    "instagram",
+    "reels",
+    "google-maps",
+    "ios-shortcuts",
+    "self-hosted",
+    "openstreetmap",
+    "sqlite"
+  ],
   "author": "",
   "license": "MIT",
   "type": "module",
@@ -46,5 +54,9 @@
   "engines": {
     "node": ">=24"
   },
-  "private": true
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Omri1227/reelocations.git"
+  }
 }

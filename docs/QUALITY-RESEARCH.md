@@ -162,3 +162,33 @@ for two routes OpenStreetMap does not name. Fixtures: a famous restaurant with t
 whose original shop is on a road named like another district.
 
 Existing pins are not re-processed automatically; new Reels use the new rules.
+
+### Needless reviews (2026-11-12, round 3)
+
+Replaying all 57 Reels of the live collection showed that most Reels still waiting in the Review Queue already had
+their place pinned correctly; a leftover piece of text kept them open. Three rules, each with a test:
+
+1. **A sentence is not a name.** Text after a pin emoji that is a whole sentence ("📌 please save this for later",
+   seen in Japanese) is commentary. Only the name part is tested, so "📍 Lake X — at 3,000 m the yurts are…" still
+   gives "Lake X".
+2. **A describing bullet is not a name.** "• Their signature …", "• Our …" in a list of dishes.
+3. **A lookup that leads back to a pin the Reel already has is not an open question.** A dish bullet whose best (weak)
+   match is another branch of the pinned restaurant; a mountain's local-script name that is "ambiguous" between the
+   pinned peak and a namesake elsewhere. A second listed place with a strong match of its own stays open.
+
+| All 57 Reels, same inputs | Before | After |
+|---|---|---|
+| Reels left in the Review Queue | 11 (19 %) | 8 (14 %) |
+| Labelled: exact place & branch accuracy | 95.7 % (45/47) | 95.7 % (45/47) |
+| Labelled: pin precision | 97.9 % (46/47) | 97.9 % (46/47) |
+| Fixtures: exact accuracy / precision | 94.4 % / 95.0 % | 94.4 % / 95.0 % |
+
+A first version of rule 1 tested the whole line and dropped four correct places of one Reel (accuracy 95.7 % → 87.2 %);
+the evaluation caught it before it shipped. The 8 Reels that remain are real questions: four name no place at all (a
+region, a mountain range, or nothing), two ask which Google listing an Approximate pin is, and one lists two trails
+OpenStreetMap does not name.
+
+The same round fixed matching bugs found in review: two-character Chinese/Japanese/Korean names ("京都") were dropped
+and scored as weak matches; lists in scripts without capital letters gave no clues; a country check compared spellings
+("United States" vs "USA") and rejected correct matches; Reels in collections other than the first never had their
+caption looked up; and a failed OCR reading was cached for good.

@@ -330,3 +330,26 @@ test('quality: menu items, hours, feature bullets, suppliers and street addresse
   assert.ok(names('📍 Located in the heart of Namba—don’t miss this local Wagyu gem!').every((n) => !/miss|Located/.test(n)));
   assert.ok(names('Tongariro Alpine Crossing — 19.4 km across volcanic craters').includes('Tongariro Alpine Crossing'));
 });
+
+test('clues: a sentence after a pin emoji and a "their/our …" bullet are not place names; the name before a dash still is', () => {
+  const names = (text: string) => extractClues([{ source: 'caption', text }]).clues.map((c) => c.text);
+  assert.deepEqual(names('📌ぜひ保存して参考にしていただけると嬉しいです🍁'), []);
+  assert.deepEqual(names('What you can expect:\n• Their signature Example Tendon\n• Our Famous Tasting Menu'), []);
+  assert.deepEqual(names('📍 Example Lake — at 3,016 m the yurts are open from june to september and the road up is rough'), ['Example Lake']);
+  assert.ok(names('📍見本公園｜長野').length === 1);
+});
+
+test('resolver: a leftover clue whose lookup leads back to a pin this Reel already has does not keep the Reel in review', async () => {
+  const { resolveReel } = await import('../src/resolve/resolver.ts');
+  const c = (ref: string, name: string, lat: number, lon: number) => ({ ref, name, displayName: `${name}, Tokyo, Japan`, lat, lon, category: 'restaurant' as const, isArea: false, isRoute: false, names: [] });
+  const main = c('osm:node:1', 'Tendon Example Hanbei Tsukiji', 35.6655, 139.7707), other = c('osm:node:2', 'Tendon Example Hanbei Nihonbashi', 35.6840, 139.7745), diner = c('osm:node:3', 'Corner Diner', 35.70, 139.70);
+  const deps: any = { geocoder: { search: async (q: string) => (/Hanbei/.test(q) ? [main] : /Edomae/.test(q) ? [other] : /Kitchen/.test(q) ? [diner] : []) } };
+  // "Signature Edomae Tendon" is a dish; searching it finds another branch of the restaurant already pinned.
+  const r = await resolveReel([{ source: 'caption', text: '📍 Tendon Example Hanbei Tsukiji\n• Signature Edomae Tendon' }], deps);
+  assert.deepEqual(r.links.map((l) => l.place.name), ['Tendon Example Hanbei Tsukiji']);
+  assert.equal(r.status, 'resolved', r.reason);
+  assert.ok(r.notes.some((n) => n.includes('leads back to')));
+  // A second listed name that leads somewhere else stays an open question.
+  const open = await resolveReel([{ source: 'caption', text: '📍 Tendon Example Hanbei Tsukiji\n• Sample Kitchen Ueno' }], deps);
+  assert.equal(open.status, 'needs_review', open.reason);
+});

@@ -89,7 +89,8 @@ async function mediaText(deps: PipelineDeps, m: MediaRow): Promise<MediaText> {
     out.error = String((e as Error).message);
     deps.store.updateMedia(m.media_id, { status: 'failed', error: out.error });
   }
-  deps.store.setKv(key, JSON.stringify(out));
+  // A failed reading (OCR data not downloaded yet, ffmpeg timeout) is not kept: the next run reads the file again.
+  if (!out.error) deps.store.setKv(key, JSON.stringify(out));
   return out;
 }
 
@@ -101,20 +102,22 @@ function fullyResolved(r: Resolution): boolean {
 export async function processReel(deps: PipelineDeps, reel: ReelRow): Promise<{ status: string; reason: string }> {
   const { store } = deps;
   const key = reel.reel_key;
+  // Keys of collections other than the first are namespaced ("c7/ig:ABC"): test the Reel, not the start of the key.
+  const isIg = /(^|\/)ig:/.test(key);
   try {
-    const caps: Capabilities = { url: reel.url ? (reel.reel_key.startsWith('ig:') ? 'ok' : 'not_instagram') : 'missing', caption: 'skipped', geotag: 'unavailable', video: 'unavailable', audio: 'skipped', images: 'unavailable', notes: [] };
+    const caps: Capabilities = { url: reel.url ? (isIg ? 'ok' : 'not_instagram') : 'missing', caption: 'skipped', geotag: 'unavailable', video: 'unavailable', audio: 'skipped', images: 'unavailable', notes: [] };
     const evidence: TextEvidence[] = store.notesFor(key).map((text) => ({ source: 'note' as const, text }));
 
     // 1) Public metadata via official oEmbed (caption only if Meta includes it; geotags are never exposed).
     let meta: ReelMetadata | undefined = reel.metadata_json ? JSON.parse(reel.metadata_json) : undefined;
-    if (reel.url && reel.reel_key.startsWith('ig:') && deps.oembed && !(meta?.ok)) {
+    if (reel.url && isIg && deps.oembed && !(meta?.ok)) {
       meta = await deps.oembed(reel.url);
       if (!meta.ok && meta.transient) throw new NetworkError(`oEmbed: ${meta.error}`);
     }
     const stages = ['metadata'];
     // 1b) Opt-in: the caption a visitor sees on the public Reel page (headless browser, no login). Only when no caption
     //     is known yet; one attempt per Reel (a failure is retried after 7 days), the result is cached with the Reel.
-    if (reel.url && reel.reel_key.startsWith('ig:') && deps.pageCaption && !(meta?.ok && meta.caption)) {
+    if (reel.url && isIg && deps.pageCaption && !(meta?.ok && meta.caption)) {
       const tried = store.getKv(`page:tried:${key}`);
       if (!tried || Date.now() - Date.parse(tried) > 7 * 86_400_000) {
         stages.push('page-caption');
@@ -222,7 +225,7 @@ export async function processReel(deps: PipelineDeps, reel: ReelRow): Promise<{ 
       // Re-processing (e.g. after the screenshot arrives) can produce a second AI estimate for the SAME place with a
       // different spelling and a slightly different position (a mountain in English vs its Japanese name, seen live 2026-11-11).
       // An approximate estimate within 3 km of a pin this Reel already has, of the same category, is that pin.
-      if (l.place.confidence === 'approximate' && !alreadyLinked.some((e) => e.place_id === l.place.place_id)) {
+      if (l.place.confidence === 'approximate' && l.place.place_id.startsWith('aiest:') && !alreadyLinked.some((e) => e.place_id === l.place.place_id)) {
         const twin = alreadyLinked.find((e) => e.category === l.place.category && haversineKm(e, l.place) < 3);
         if (twin) { l.place.place_id = twin.place_id; savedAs.set(ref0, twin.place_id); continue; }
       }
@@ -256,8 +259,17 @@ export async function processReel(deps: PipelineDeps, reel: ReelRow): Promise<{ 
     reviewCandidates = reviewCandidates.filter((c) => { const pid = c.confirmsApproxPlaceId ?? c.replacesApproxPlaceId; return !pid || !settled(pid); });
     let resStatus = res.status;
     if (resStatus === 'needs_review' && res.reason.startsWith('saved as approximate') && !reviewCandidates.some((c) => c.confirmsApproxPlaceId)) resStatus = 'resolved';
-    store.replaceCandidates(key, reviewCandidates);
+    // An open "Which Google Maps listing?" question belongs to the pin, not to this run: keep it while the pin is still
+    // on the Reel (re-processing after the screenshot arrived used to wipe the options for good).
+    const pinsNow = new Set((store.linksForReel(key) as any[]).map((e) => e.place_id));
+    const listingQs = store.candidatesFor(key).filter((c) => c.replacesPlaceId && pinsNow.has(c.replacesPlaceId) && !reviewCandidates.some((x) => x.ref === c.ref && x.replacesPlaceId === c.replacesPlaceId));
+    store.replaceCandidates(key, [...listingQs, ...reviewCandidates]);
     let reason = resStatus === res.status ? res.reason : `${res.links.length} place(s) saved`;
+    if (listingQs.length) {
+      const asked = (reel.status_reason ?? '').split(' · ').filter((x) => /^(Which Google Maps listing|Google Maps list:)/.test(x)).join(' · ') || 'a Google Maps listing choice is still open';
+      reason = resStatus === 'needs_review' ? `${reason} · ${asked}` : asked;
+      resStatus = 'needs_review';
+    }
     if (resStatus === 'needs_review' && !media.length && caps.caption !== 'ok') reason += ' — tip: share the Reel again with Save Reel to Map (it attaches a screenshot), or add a note with the place name';
     // A Reel that already had confirmed places (e.g. chosen by the user) keeps them even if this run found less.
     const existing = store.linksForReel(key);
@@ -266,7 +278,7 @@ export async function processReel(deps: PipelineDeps, reel: ReelRow): Promise<{ 
     // "Could not check" is not "ambiguous": if a lookup was skipped because a service was busy/offline, retry later.
     if (status === 'needs_review' && res.deferred.length && reel.attempts + 1 < MAX_ATTEMPTS) {
       const why = `will retry: ${res.deferred.join(', ')} unavailable`;
-      store.setReelError(key, why);
+      store.setReelError(key, why, 360, reel.attempts); // setReelResult above reset the counter: count from before this run
       deps.log?.(`${key}: ${why}`);
       return { status: 'error', reason: why };
     }
