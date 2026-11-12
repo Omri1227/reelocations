@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="reelocations">
+<meta name="referrer" content="no-referrer">
+<title>reelocations</title>
+<style>
+[hidden]{display:none!important}
+:root{--bg:#f6f5f1;--panel:#fff;--fg:#1c1c1a;--mut:#6c6b66;--line:#e4e2dc;--acc:#2f6f4f;--acc-fg:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#161614;--panel:#20201d;--fg:#ecebe5;--mut:#a3a29b;--line:#34332e;--acc:#7cc79f;--acc-fg:#10241a}}
+:root[data-theme=dark]{--bg:#161614;--panel:#20201d;--fg:#ecebe5;--mut:#a3a29b;--line:#34332e;--acc:#7cc79f;--acc-fg:#10241a}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--fg);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;display:flex;align-items:center;justify-content:center;padding:24px 16px calc(24px + env(safe-area-inset-bottom))}
+main{width:100%;max-width:400px}
+h1{font-size:28px;margin:0 0 4px;display:flex;align-items:center;gap:12px;letter-spacing:-.02em}h1 .logo{border-radius:11px;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.sub{color:var(--mut);margin:0 0 24px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px}
+.tabs{display:flex;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:3px;margin-bottom:18px}
+.tabs button{flex:1;border:0;background:none;color:var(--fg);font:inherit;font-weight:600;padding:8px;border-radius:8px;cursor:pointer}
+.tabs button[aria-selected=true]{background:var(--panel);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.what{font-size:14px;color:var(--mut);margin:0 0 16px}
+#gbtn{min-height:44px;display:flex;justify-content:center}
+.note{font-size:13px;color:var(--mut);margin-top:16px}
+.banner{border:1px solid var(--acc);border-radius:10px;padding:10px 12px;margin-bottom:16px;font-size:14px}
+.err{color:#b3261e;font-size:14px;margin-top:12px;min-height:1em}
+ul{padding-left:20px;margin:8px 0 0;font-size:14px;color:var(--mut)}
+</style>
+</head>
+<body>
+<main>
+  <h1><img class="logo" src="/icon.svg" alt="" width="44" height="44">reelocations</h1>
+  <p class="sub">Share an Instagram Reel from your iPhone. Find the place later on your map and in Google Maps.</p>
+  <div class="card">
+    <div id="banner"></div>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-up" aria-selected="false">Sign up</button>
+      <button role="tab" id="tab-in" aria-selected="true">Sign in</button>
+    </div>
+    <p class="what" id="what"></p>
+    <div id="gbtn"></div>
+    <div class="err" id="err" role="alert"></div>
+    <p class="note">You sign in on Google's own screen. reelocations never sees or stores your Google password; it only learns your name and email address.</p>
+  </div>
+</main>
+<script>
+(function () {
+  'use strict';
+  var qs = new URLSearchParams(location.search);
+  var join = (location.pathname.match(/^\/join\/([A-Za-z0-9-]+)/) || [])[1] || qs.get('invite');
+  var claim = qs.get('k');
+  // Do not keep secrets in the address bar or history.
+  if (claim) { try { sessionStorage.setItem('rm_claim', claim); } catch (e) {} history.replaceState(null, '', '/signin'); }
+  try { claim = claim || sessionStorage.getItem('rm_claim'); } catch (e) {}
+  var mode = location.pathname === '/signup' || join ? 'up' : 'in';
+  var $ = function (id) { return document.getElementById(id); };
+  function setMode(m) {
+    mode = m;
+    $('tab-up').setAttribute('aria-selected', m === 'up'); $('tab-in').setAttribute('aria-selected', m === 'in');
+    $('what').textContent = m === 'up' ? 'Create your reelocations account with Google. Next, you connect your iPhone Shortcut and, if you like, Google Maps.' : 'Welcome back. Sign in with the same Google account to open your collection.';
+    renderButton();
+  }
+  $('tab-up').onclick = function () { setMode('up'); }; $('tab-in').onclick = function () { setMode('in'); };
+  if (join) $('banner').innerHTML = '<div class="banner">You were invited to a shared collection. Sign in (or sign up) with Google to join it.</div>';
+  else if (claim) $('banner').innerHTML = '<div class="banner">This is your existing collection. Sign in with Google once to move it to your account. After that, the old link no longer opens it.</div>';
+
+  var clientId = null, ready = false;
+  function onCredential(resp) {
+    $('err').textContent = '';
+    fetch('/auth/google', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ credential: resp.credential, invite: join || undefined, claim: claim || undefined }) })
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status)); return j; }); })
+      .then(function (j) { try { sessionStorage.removeItem('rm_claim'); } catch (e) {} location.replace(j.next || '/'); })
+      .catch(function (e) { $('err').textContent = e.message; });
+  }
+  function renderButton() {
+    if (!ready) return;
+    $('gbtn').innerHTML = '';
+    google.accounts.id.renderButton($('gbtn'), { theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'filled_black' : 'outline', size: 'large', shape: 'pill', text: mode === 'up' ? 'signup_with' : 'signin_with', width: 300 });
+  }
+  function init() {
+    google.accounts.id.initialize({ client_id: clientId, callback: onCredential, auto_select: !join && !claim, itp_support: true, use_fedcm_for_prompt: true });
+    ready = true; renderButton();
+    // Return visits: Google may restore the session silently (One Tap); otherwise the button is right there.
+    if (!join && !claim) google.accounts.id.prompt();
+  }
+  fetch('/auth/config').then(function (r) { return r.json(); }).then(function (c) {
+    if (!c.client_id) { $('err').textContent = 'Google Sign-In is not configured on this server yet.'; return; }
+    clientId = c.client_id;
+    var s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.async = true; s.onload = init;
+    s.onerror = function () { $('err').textContent = 'Could not load Google Sign-In. Check your connection and try again.'; };
+    document.head.appendChild(s);
+  });
+  setMode(mode);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+ "recordedAt": "2026-11-10T17:08:34.859Z",
+ "method": "GET",
+ "url": "https://nominatim.openstreetmap.org/search?q=Banias+Waterfall&format=jsonv2&limit=6&extratags=1&namedetails=1&accept-language=en",
+ "requestBody": null,
+ "status": 200,
+ "contentType": "application/json; charset=utf-8",
+ "body": "[{\"place_id\":210326136,\"licence\":\"Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright\",\"osm_type\":\"node\",\"osm_id\":3446420753,\"lat\":\"33.2409572\",\"lon\":\"35.6818757\",\"category\":\"waterway\",\"type\":\"waterfall\",\"place_rank\":20,\"importance\":0.13338458609903103,\"addresstype\":\"waterfall\",\"name\":\"Banias waterfall\",\"display_name\":\"Banias waterfall, Galil Elyon Regional Council, Safed Subdistrict, North District, Israel\",\"extratags\":{\"image\": \"https://upload.wikimedia.org/wikipedia/commons/1/13/IHM_מפל_בניאס.jpeg\", \"wikidata\": \"Q106287995\"},\"namedetails\":{\"name\": \"מפל בניאס\", \"name:de\": \"Naturschutzgebiet LP Seite 767 plus nimrodburg\", \"name:en\": \"Banias waterfall\", \"name:he\": \"מפל בניאס\"},\"boundingbox\":[\"33.2409072\",\"33.2410072\",\"35.6818257\",\"35.6819257\"]}]"
+}

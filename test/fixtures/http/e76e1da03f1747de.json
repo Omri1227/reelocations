@@ -1,0 +1,9 @@
+{
+ "recordedAt": "2026-11-10T17:05:28.624Z",
+ "method": "GET",
+ "url": "https://nominatim.openstreetmap.org/search?q=Nahal+David%2C+Ein+Gedi+Nature+Reserve&format=jsonv2&limit=6&extratags=1&namedetails=1&accept-language=en",
+ "requestBody": null,
+ "status": 200,
+ "contentType": "application/json; charset=utf-8",
+ "body": "[]"
+}

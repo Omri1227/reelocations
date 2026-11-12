@@ -1,0 +1,12 @@
+node_modules
+data
+.env
+.git
+test
+docs
+*.log
+private
+chrome-profile
+*.sqlite*
+.env.*
+!.env.example

@@ -1,0 +1,9 @@
+{
+ "recordedAt": "2026-11-10T20:46:49.972Z",
+ "method": "GET",
+ "url": "https://nominatim.openstreetmap.org/reverse?lat=35.71340&lon=139.79553&zoom=10&format=jsonv2&addressdetails=1&accept-language=en",
+ "requestBody": null,
+ "status": 200,
+ "contentType": "application/json; charset=utf-8",
+ "body": "{\"place_id\":266052004,\"licence\":\"Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright\",\"osm_type\":\"relation\",\"osm_id\":1758888,\"lat\":\"35.7125805\",\"lon\":\"139.7800712\",\"category\":\"boundary\",\"type\":\"administrative\",\"place_rank\":16,\"importance\":0.5903609579034411,\"addresstype\":\"city\",\"name\":\"Taito\",\"display_name\":\"Taito, Tokyo, Japan\",\"address\":{\"city\":\"Taito\",\"ISO3166-2-lvl4\":\"JP-13\",\"country\":\"Japan\",\"country_code\":\"jp\"},\"boundingbox\":[\"35.6948026\",\"35.7316244\",\"139.7622652\",\"139.8098027\"]}"
+}

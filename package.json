@@ -1,0 +1,50 @@
+{
+  "name": "reelocations",
+  "version": "1.0.0",
+  "description": "Self-hosted: share an Instagram Reel from iPhone and find the place later, on your own map and in Google Maps.",
+  "scripts": {
+    "test": "node --test test/unit.test.ts test/grouped.test.ts test/google.test.ts test/caption-list.test.ts test/scenarios.test.ts test/e2e.test.ts test/hosted.test.ts test/accounts.test.ts test/aiusage.test.ts test/gmaps-list.test.ts",
+    "test:record": "node scripts/record.ts",
+    "typecheck": "tsc -p .",
+    "smoke": "node scripts/smoke.ts",
+    "smoke:live": "node scripts/live-lookup.ts",
+    "run": "node src/cli.ts run",
+    "serve": "node src/cli.ts serve",
+    "status": "node src/cli.ts status",
+    "sync": "node src/cli.ts sync",
+    "google:login": "node src/cli.ts google:login",
+    "google:verify": "node src/cli.ts google:verify",
+    "doctor": "node src/cli.ts doctor",
+    "install-task": "node src/cli.ts install-task",
+    "cli": "node src/cli.ts",
+    "demo": "node scripts/demo.ts",
+    "eval:quality": "node scripts/eval-quality.ts",
+    "start": "node src/server.ts",
+    "railway:plan": "node scripts/railway-config.ts plan"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
+    "ffmpeg-static": "^5.3.0",
+    "playwright-core": "^1.65.0",
+    "tesseract.js": "^6.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "railway": "^3.16.0",
+    "typescript": "^5.9.3"
+  },
+  "allowScripts": {
+    "ffmpeg-static@5.3.0": true
+  },
+  "optionalDependencies": {
+    "@huggingface/transformers": "^3.8.1"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "private": true
+}

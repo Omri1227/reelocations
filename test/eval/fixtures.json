@@ -1,0 +1,43 @@
+{
+  "about": "Written captions (NOT real Reels) for cases the real collection lacks: hiking routes, more multi-location lists, chain branches, ambiguous captions. Same label format as real-labels.json. Run without AI (captions only).",
+  "reels": [
+    { "key": "fx:01-angels-landing", "split": "dev", "kind": "hike", "expect": "pins", "caption": "Angels Landing 🥾 one of the scariest hikes in Zion National Park, Utah #hiking #zion", "places": [
+      { "name": "Angels Landing", "lat": 37.2694, "lon": -112.9476, "tol_km": 3, "cat": ["hike", "mountain", "viewpoint"], "poi": true },
+      { "name": "Zion National Park", "lat": 37.25, "lon": -112.95, "tol_km": 30, "cat": ["nature_reserve", "park", "area"], "optional": true } ] },
+    { "key": "fx:02-tongariro", "split": "holdout", "kind": "hike", "expect": "pins", "caption": "Tongariro Alpine Crossing — 19.4 km across volcanic craters and emerald lakes 🇳🇿 #newzealand #hike", "places": [
+      { "name": "Tongariro Alpine Crossing", "lat": -39.135, "lon": 175.65, "tol_km": 12, "cat": ["hike"], "poi": true } ] },
+    { "key": "fx:03-path-of-gods", "split": "dev", "kind": "hike", "expect": "pins", "caption": "Walking above the sea 🇮🇹 📍 Sentiero degli Dei (Path of the Gods), Amalfi Coast", "places": [
+      { "name": "Sentiero degli Dei", "lat": 40.62, "lon": 14.52, "tol_km": 6, "cat": ["hike"], "poi": true } ] },
+    { "key": "fx:04-laguna-de-los-tres", "split": "holdout", "kind": "hike", "expect": "pins", "caption": "Hike to Laguna de los Tres from El Chaltén, Patagonia 🇦🇷 worth every step", "places": [
+      { "name": "Laguna de los Tres (hike)", "lat": -49.27, "lon": -73.0, "tol_km": 10, "cat": ["hike", "lake", "viewpoint"], "poi": true },
+      { "name": "El Chaltén", "lat": -49.33, "lon": -72.89, "tol_km": 4, "cat": ["area"], "optional": true } ] },
+    { "key": "fx:05-dolomite-lakes", "split": "dev", "kind": "multi", "expect": "pins", "caption": "3 lakes you can't miss in the Dolomites 🇮🇹\n📍 Lago di Braies\n📍 Lago di Sorapis\n📍 Lago di Carezza", "places": [
+      { "name": "Lago di Braies", "lat": 46.6946, "lon": 12.0853, "tol_km": 2, "cat": ["lake"], "poi": true },
+      { "name": "Lago di Sorapis", "lat": 46.5145, "lon": 12.2068, "tol_km": 2, "cat": ["lake"], "poi": true },
+      { "name": "Lago di Carezza", "lat": 46.4093, "lon": 11.5754, "tol_km": 2, "cat": ["lake"], "poi": true } ] },
+    { "key": "fx:06-bangkok-food", "split": "holdout", "kind": "multi", "expect": "pins", "caption": "Bangkok street food tour 🇹🇭\n1. Jay Fai\n2. Thipsamai Pad Thai\n3. Wattana Panich", "places": [
+      { "name": "Jay Fai", "lat": 13.7527, "lon": 100.5045, "tol_km": 0.5, "cat": ["restaurant"], "cuisine": ["thai", null], "poi": true },
+      { "name": "Thipsamai Pad Thai", "lat": 13.7530, "lon": 100.5050, "tol_km": 0.5, "cat": ["restaurant"], "cuisine": ["thai", null], "poi": true },
+      { "name": "Wattana Panich", "lat": 13.7340, "lon": 100.5870, "tol_km": 1.5, "cat": ["restaurant"], "cuisine": ["thai", null], "poi": true } ] },
+    { "key": "fx:07-iceland", "split": "dev", "kind": "multi", "expect": "pins", "caption": "Iceland ring road highlights 🇮🇸\n📍 Seljalandsfoss\n📍 Skógafoss\n📍 Jökulsárlón", "places": [
+      { "name": "Seljalandsfoss", "lat": 63.6156, "lon": -19.9886, "tol_km": 2, "cat": ["waterfall"], "poi": true },
+      { "name": "Skógafoss", "lat": 63.5321, "lon": -19.5114, "tol_km": 2, "cat": ["waterfall"], "poi": true },
+      { "name": "Jökulsárlón", "lat": 64.0784, "lon": -16.2306, "tol_km": 3, "cat": ["lake"], "poi": true } ] },
+    { "key": "fx:08-ichiran-shibuya", "split": "dev", "kind": "restaurant", "expect": "pins", "caption": "Solo ramen booths 🍜 📍 Ichiran Shibuya, Tokyo", "places": [
+      { "name": "Ichiran Shibuya", "lat": 35.6617, "lon": 139.6998, "tol_km": 0.4, "cat": ["restaurant"], "cuisine": ["ramen"], "poi": true } ] },
+    { "key": "fx:09-katz", "split": "holdout", "kind": "restaurant", "expect": "pins", "caption": "The pastrami sandwich 🥪 📍 Katz's Delicatessen, Lower East Side, NYC", "places": [
+      { "name": "Katz's Delicatessen", "lat": 40.7223, "lon": -73.9874, "tol_km": 0.3, "cat": ["restaurant", "cafe"], "poi": true } ] },
+    { "key": "fx:10-din-tai-fung-xinyi", "split": "dev", "kind": "restaurant", "expect": "pins", "caption": "The original 🥟 📍 Din Tai Fung Xinyi, Taipei", "places": [
+      { "name": "Din Tai Fung Xinyi (original)", "lat": 25.0335, "lon": 121.5300, "tol_km": 0.5, "cat": ["restaurant"], "cuisine": ["chinese", null], "poi": true } ] },
+    { "key": "fx:11-califa-de-leon", "split": "dev", "kind": "restaurant", "expect": "pins", "caption": "Tacos al pastor 🌮 📍 El Califa de León, San Rafael, CDMX", "places": [
+      { "name": "El Califa de León", "lat": 19.4402, "lon": -99.1610, "tol_km": 0.8, "cat": ["restaurant"], "cuisine": ["mexican", null], "poi": true } ] },
+    { "key": "fx:12-moraine", "split": "dev", "kind": "nature", "expect": "pins", "caption": "Moraine Lake at sunrise 🇨🇦 Banff National Park", "places": [
+      { "name": "Moraine Lake", "lat": 51.3217, "lon": -116.1860, "tol_km": 2, "cat": ["lake"], "poi": true },
+      { "name": "Banff National Park", "lat": 51.5, "lon": -116.0, "tol_km": 80, "cat": ["nature_reserve", "park", "area"], "optional": true } ] },
+    { "key": "fx:13-sunset", "split": "dev", "kind": "ambiguous", "expect": "none", "caption": "Best sunset ever 🌅 #travel #wanderlust #nature", "places": [] },
+    { "key": "fx:14-paris-vibes", "split": "holdout", "kind": "ambiguous", "expect": "none", "caption": "Paris vibes 🇫🇷 #paris #travel", "places": [
+      { "name": "Paris (area)", "lat": 48.8566, "lon": 2.3522, "tol_km": 10, "cat": ["area"], "optional": true } ] },
+    { "key": "fx:15-rome-cafe", "split": "dev", "kind": "ambiguous", "expect": "none", "caption": "This little café in Rome is a hidden gem ☕ who wants to go?", "places": [
+      { "name": "Rome (area)", "lat": 41.9028, "lon": 12.4964, "tol_km": 15, "cat": ["area"], "optional": true } ] }
+  ]
+}

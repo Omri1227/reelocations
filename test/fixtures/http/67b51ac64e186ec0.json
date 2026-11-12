@@ -1,0 +1,9 @@
+{
+ "recordedAt": "2026-11-10T17:08:37.383Z",
+ "method": "GET",
+ "url": "https://nominatim.openstreetmap.org/reverse?lat=33.24096&lon=35.68188&zoom=10&format=jsonv2&addressdetails=1&accept-language=en",
+ "requestBody": null,
+ "status": 200,
+ "contentType": "application/json; charset=utf-8",
+ "body": "{\"place_id\":210647844,\"licence\":\"Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright\",\"osm_type\":\"relation\",\"osm_id\":1378948,\"lat\":\"33.1250255\",\"lon\":\"35.6124238\",\"category\":\"boundary\",\"type\":\"administrative\",\"place_rank\":16,\"importance\":0.4523925829638384,\"addresstype\":\"city\",\"name\":\"Galil Elyon Regional Council\",\"display_name\":\"Galil Elyon Regional Council, Safed Subdistrict, North District, Israel\",\"address\":{\"city\":\"Galil Elyon Regional Council\",\"state_district\":\"Safed Subdistrict\",\"state\":\"North District\",\"ISO3166-2-lvl4\":\"IL-Z\",\"country\":\"Israel\",\"country_code\":\"il\"},\"boundingbox\":[\"32.8891188\",\"33.2617312\",\"35.3645705\",\"35.6843540\"]}"
+}

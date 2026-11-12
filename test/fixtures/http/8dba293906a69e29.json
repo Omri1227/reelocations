@@ -1,0 +1,9 @@
+{
+ "recordedAt": "2026-11-10T17:08:13.689Z",
+ "method": "GET",
+ "url": "https://nominatim.openstreetmap.org/search?q=Miradouro+da+Senhora+do+Monte&format=jsonv2&limit=6&extratags=1&namedetails=1&accept-language=en",
+ "requestBody": null,
+ "status": 200,
+ "contentType": "application/json; charset=utf-8",
+ "body": "[{\"place_id\":429799314,\"licence\":\"Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright\",\"osm_type\":\"node\",\"osm_id\":14243536001,\"lat\":\"38.7190781\",\"lon\":\"-9.1329112\",\"category\":\"tourism\",\"type\":\"viewpoint\",\"place_rank\":30,\"importance\":8.149767299911524e-05,\"addresstype\":\"tourism\",\"name\":\"Miradouro da Senhora do Monte\",\"display_name\":\"Miradouro da Senhora do Monte, Rua da Senhora do Monte, Graça, São Vicente, Lisbon, 1170-112, Portugal\",\"extratags\":null,\"namedetails\":{\"name\": \"Miradouro da Senhora do Monte\"},\"boundingbox\":[\"38.7190281\",\"38.7191281\",\"-9.1329612\",\"-9.1328612\"]}]"
+}

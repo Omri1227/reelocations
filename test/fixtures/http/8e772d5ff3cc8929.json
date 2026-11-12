@@ -1,0 +1,9 @@
+{
+ "recordedAt": "2026-11-10T20:46:54.420Z",
+ "method": "GET",
+ "url": "https://nominatim.openstreetmap.org/search?q=Qwzzix+Hidden+Kissaten%2C+Kyoto&format=jsonv2&limit=3&extratags=1&namedetails=1&accept-language=en",
+ "requestBody": null,
+ "status": 200,
+ "contentType": "application/json; charset=utf-8",
+ "body": "[]"
+}

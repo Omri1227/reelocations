@@ -1,0 +1,24 @@
+# dependencies
+node_modules/
+
+# local data: SQLite, media, Chrome profile used for My Maps, eval caches, demo data
+data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+chrome-profile/
+
+# secrets
+.env
+.env.*
+!.env.example
+
+# personal evaluation data (real Reels, results) and anything private
+private/
+
+# logs and OS/editor files
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

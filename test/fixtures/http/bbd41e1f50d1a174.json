@@ -1,0 +1,9 @@
+{
+ "recordedAt": "2026-11-10T17:05:23.479Z",
+ "method": "GET",
+ "url": "https://nominatim.openstreetmap.org/search?q=Chiado&format=jsonv2&limit=3&extratags=1&namedetails=1&accept-language=en",
+ "requestBody": null,
+ "status": 200,
+ "contentType": "application/json; charset=utf-8",
+ "body": "[{\"place_id\":297269718,\"licence\":\"Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright\",\"osm_type\":\"node\",\"osm_id\":1148841793,\"lat\":\"38.7103298\",\"lon\":\"-9.1405186\",\"category\":\"place\",\"type\":\"neighbourhood\",\"place_rank\":24,\"importance\":0.4101932977803121,\"addresstype\":\"neighbourhood\",\"name\":\"Chiado\",\"display_name\":\"Chiado, Santa Maria Maior, Madalena, Lisbon, 1200-445, Portugal\",\"extratags\":{\"wikidata\": \"Q601430\", \"wikipedia\": \"en:Chiado\", \"wikimedia_commons\": \"Category:Chiado\"},\"namedetails\":{\"name\": \"Chiado\"},\"boundingbox\":[\"38.7003298\",\"38.7203298\",\"-9.1505186\",\"-9.1305186\"]}]"
+}

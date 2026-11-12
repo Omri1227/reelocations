@@ -1,0 +1,9 @@
+{
+ "recordedAt": "2026-11-10T17:05:27.408Z",
+ "method": "GET",
+ "url": "https://nominatim.openstreetmap.org/search?q=Ein+Gedi+Nature+Reserve&format=jsonv2&limit=6&extratags=1&namedetails=1&accept-language=en",
+ "requestBody": null,
+ "status": 200,
+ "contentType": "application/json; charset=utf-8",
+ "body": "[{\"place_id\":47607584,\"licence\":\"Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright\",\"osm_type\":\"relation\",\"osm_id\":6076332,\"lat\":\"31.4446569\",\"lon\":\"35.3732426\",\"category\":\"boundary\",\"type\":\"protected_area\",\"place_rank\":25,\"importance\":0.4596388826656313,\"addresstype\":\"protected_area\",\"name\":\"Ein Gedi Nature Reserve\",\"display_name\":\"Ein Gedi Nature Reserve, Tamar Regional Council, Beersheba Subdistrict, South District, Israel\",\"extratags\":{\"ref1\": \"6004797;6002471\", \"wikidata\": \"Q1011544\", \"protect_class\": \"1\", \"ref:IL:inature\": \"שמורת עין גדי\", \"sorting_name:cs\": \"Ejn Gedi\", \"protection_title\": \"Nature Reserve\"},\"namedetails\":{\"ref\": \"ד/430א;3/102/02/10\", \"name\": \"שמורת טבע עין גדי\", \"name:ar\": \"محمية عين جدي الطبيعية\", \"name:cs\": \"přírodní rezervace Ejn Gedi\", \"name:en\": \"Ein Gedi Nature Reserve\", \"name:fr\": \"Réserve naturelle d'Ein Gedi\", \"name:he\": \"שמורת טבע עין גדי\"},\"boundingbox\":[\"31.3974345\",\"31.4918902\",\"35.3470654\",\"35.4000379\"]}]"
+}

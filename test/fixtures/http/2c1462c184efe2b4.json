@@ -1,0 +1,9 @@
+{
+ "recordedAt": "2026-11-10T17:08:36.288Z",
+ "method": "GET",
+ "url": "https://nominatim.openstreetmap.org/search?q=Golan+Heights&format=jsonv2&limit=6&extratags=1&namedetails=1&accept-language=en",
+ "requestBody": null,
+ "status": 200,
+ "contentType": "application/json; charset=utf-8",
+ "body": "[{\"place_id\":210360215,\"licence\":\"Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright\",\"osm_type\":\"node\",\"osm_id\":4937968922,\"lat\":\"33.0408017\",\"lon\":\"35.7392885\",\"category\":\"place\",\"type\":\"state\",\"place_rank\":8,\"importance\":0.29338582055390244,\"addresstype\":\"state\",\"name\":\"Golan Heights\",\"display_name\":\"Golan Heights, Israel\",\"extratags\":{\"wikidata\": \"Q83210\", \"wikipedia\": \"he:רמת הגולן\", \"description\": \"ציר המוסכים\", \"wikipedia:ar\": \"هضبة الجولان\", \"wikipedia:he\": \"רמת הגולן\", \"description:he\": \"ציר המוסכים\"},\"namedetails\":{\"name\": \"רמת הגולן\", \"name:ar\": \"هضبة الجولان\", \"name:cs\": \"Golanské výšiny\", \"name:de\": \"Golanhöhen\", \"name:en\": \"Golan Heights\", \"name:fa\": \"بلندی‌های جولان\", \"name:fr\": \"Plateau du Golan\", \"name:he\": \"רמת הגולן\", \"name:hi\": \"गोलान पहाड़ियाँ\", \"name:ml\": \"ഗോലാൻ കുന്നുകൾ\", \"name:pa\": \"ਗੋਲਾਨ ਉਚਾਈਆਂ\", \"name:ru\": \"Голанские высоты\", \"name:ta\": \"கோலான் குன்றுகள்\", \"name:uk\": \"Ґоланські висоти\", \"name:ur\": \"گولان پہاڑیاں\", \"name:zh\": \"戈兰高地\", \"alt_name\": \"הגולן\", \"name:pnb\": \"گولان اچائیاں\", \"name:zh-Hans\": \"戈兰高地\", \"name:zh-Hant\": \"戈蘭高地\", \"short_name:ar\": \"الهضبة\"},\"boundingbox\":[\"30.4408017\",\"35.6408017\",\"33.1392885\",\"38.3392885\"]}]"
+}

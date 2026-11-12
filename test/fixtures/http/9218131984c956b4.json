@@ -1,0 +1,9 @@
+{
+ "recordedAt": "2026-11-10T17:08:31.042Z",
+ "method": "GET",
+ "url": "https://nominatim.openstreetmap.org/search?q=Praia+da+Ursa%2C+Sintra&format=jsonv2&limit=6&extratags=1&namedetails=1&accept-language=en",
+ "requestBody": null,
+ "status": 200,
+ "contentType": "application/json; charset=utf-8",
+ "body": "[{\"place_id\":296940293,\"licence\":\"Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright\",\"osm_type\":\"way\",\"osm_id\":150770670,\"lat\":\"38.7904957\",\"lon\":\"-9.4922684\",\"category\":\"natural\",\"type\":\"beach\",\"place_rank\":22,\"importance\":0.09078915819201436,\"addresstype\":\"beach\",\"name\":\"Ursa Beach\",\"display_name\":\"Ursa Beach, Casa da Adraga, Colares, Sintra, Lisbon, Portugal\",\"extratags\":{\"sport\": \"swimming\", \"access\": \"yes\", \"nudism\": \"yes\", \"surface\": \"sand\", \"wikidata\": \"Q10352678\", \"wikipedia\": \"pt:Praia da Ursa\", \"supervised\": \"no\", \"opening_hours\": \"24/7\", \"wikimedia_commons\": \"Category:Praia da Ursa\"},\"namedetails\":{\"name\": \"Praia da Ursa\", \"name:en\": \"Ursa Beach\", \"name:pt\": \"Praia da Ursa\", \"alt_name\": \"Praia da Ursa Naturista\"},\"boundingbox\":[\"38.7895808\",\"38.7914671\",\"-9.4933106\",\"-9.4917740\"]}]"
+}

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="apple-mobile-web-app-title" content="reelocations">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<title>reelocations setup</title>
+<style>
+[hidden]{display:none!important}
+:root{--bg:#f6f5f1;--panel:#fff;--fg:#1c1c1a;--mut:#6c6b66;--line:#e4e2dc;--acc:#2f6f4f;--acc-fg:#fff;--ok:#2e7d4f;--warn:#a65a00;--bad:#b3261e}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#161614;--panel:#20201d;--fg:#ecebe5;--mut:#a3a29b;--line:#34332e;--acc:#7cc79f;--acc-fg:#10241a;--ok:#7cc79f;--warn:#f0a050;--bad:#ff8a80}}
+:root[data-theme=dark]{--bg:#161614;--panel:#20201d;--fg:#ecebe5;--mut:#a3a29b;--line:#34332e;--acc:#7cc79f;--acc-fg:#10241a;--ok:#7cc79f;--warn:#f0a050;--bad:#ff8a80}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
+main{max-width:620px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+header h1{font-size:22px;margin:0;flex:1}
+a{color:var(--acc)}
+.who{color:var(--mut);font-size:14px;margin:0 0 18px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
+h2{font-size:17px;margin:0 0 6px;display:flex;align-items:center;gap:8px}
+.n{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--acc);color:var(--acc-fg);font-size:13px;font-weight:700}
+.done{color:var(--ok);font-size:14px;font-weight:600}
+p,li{font-size:15px}.m{color:var(--mut);font-size:14px}
+ol{padding-left:20px;margin:8px 0}
+button{font:inherit;font-weight:600;border-radius:10px;border:1px solid var(--acc);background:var(--acc);color:var(--acc-fg);padding:10px 14px;cursor:pointer}
+button.ghost{background:transparent;color:var(--acc)}
+button.danger{background:transparent;color:var(--bad);border-color:var(--bad)}
+.box{display:flex;gap:8px;align-items:center;margin:10px 0;flex-wrap:wrap}
+code,.secret{font:14px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;word-break:break-all;flex:1;min-width:0}
+.code{font-size:26px;letter-spacing:.12em;text-align:center}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.st-ok{color:var(--ok)}.st-pending{color:var(--warn)}.st-attention{color:var(--bad)}
+select{font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+</style>
+</head>
+<body>
+<main>
+  <header><h1>Set up reelocations</h1><a href="/">Open map →</a></header>
+  <p class="who" id="who"></p>
+
+  <section id="s-shortcut">
+    <h2><span class="n">1</span> Connect your iPhone Shortcut <span id="sc-done" class="done"></span></h2>
+    <p class="m">The <b>Save Reel to Map</b> Shortcut sends a Reel and a screenshot of it from Instagram → Share. It uses a personal link from this page, so Reels go to your collection on this reelocations installation. You can revoke the link below at any time.</p>
+    <div id="sc-legacy"></div>
+    <p><b>On this iPhone:</b></p>
+    <ol>
+      <li>Tap <b>Create my Shortcut link</b>, then <b>Copy</b>.</li>
+      <li>Open the <a href="https://www.icloud.com/shortcuts/1659842abe2140589bfec5d68e95a159" target="_blank" rel="noopener">Save Reel to Map Shortcut</a> and tap <b>Add Shortcut</b>. When it asks for your link, paste it.</li>
+      <li>Already have the Shortcut? Open <b>Shortcuts</b> → long-press <b>Save Reel to Map</b> → <b>Edit</b>, and replace the old link with the new one (the URL used by <b>Get Contents of URL</b>).</li>
+      <li>Test it: in Instagram, open a Reel → Share → <b>Save Reel to Map</b>.</li>
+    </ol>
+    <div class="box"><button id="mk-link">Create my Shortcut link</button></div>
+    <div class="box" id="link-box" hidden><span class="secret" id="link"></span><button class="ghost" id="copy-link">Copy</button></div>
+    <details><summary class="m">Setting up a different iPhone? Use a one-time code instead</summary>
+      <p class="m">Create a code here and enter it on the other iPhone at <b>reelocations → Sign in</b>, or in a Shortcut that calls <code>/api/pair</code>. Codes work once and expire after 10 minutes.</p>
+      <div class="box"><button class="ghost" id="mk-code">Create a code</button><span class="secret code" id="code" hidden></span></div>
+    </details>
+    <div id="creds"></div>
+  </section>
+
+  <section id="s-glist">
+    <h2><span class="n">2</span> Save places to a Google Maps list <span class="m">(optional, beta)</span> <span id="gl-done" class="done"></span></h2>
+    <p class="m">The server saves each place's <b>real Google Maps listing</b> (the right branch) to a list in your Google account, so it opens its normal place card in the Google Maps app — even when your computer is off. Google has no API for this, so the server uses your Google Maps session in a browser. Only Reels you share <b>after you first connect</b> are saved (places you saved before are left out), and only once their listing is verified; approximate or unclear ones wait in the Review Queue.</p>
+    <ol>
+      <li>Tap <b>Create Google Maps code</b>, then run the command shown on a computer with Chrome and this project.</li>
+      <li>Sign in to Google in the window that opens (a separate test account is recommended at first). Only the browser session is sent to this server; your password never is.</li>
+    </ol>
+    <div class="box"><button id="mk-gl">Create Google Maps code</button></div>
+    <div class="box" id="gl-box" hidden><span class="secret" id="gl-cmd"></span><button class="ghost" id="copy-gl">Copy</button></div>
+    <div id="gl-status"></div>
+  </section>
+
+  <section id="s-maps">
+    <h2><span class="n">3</span> Google My Maps per country <span class="m">(optional, desktop)</span></h2>
+    <p class="m">Google My Maps has no public API. Only a browser signed in to <b>your</b> Google account can add places to your maps, so a small program on your computer publishes them. Railway processes each Reel once; the computer only publishes finished pins, one map per country, for any number of countries.</p>
+    <ol>
+      <li>On your Windows computer with Chrome, open a terminal in the reelocations folder.</li>
+      <li>Tap <b>Create desktop code</b>, then run the command shown below.</li>
+      <li>The first time, a Chrome window asks you to sign in to Google. Do it yourself; reelocations never sees your password.</li>
+    </ol>
+    <div class="box"><button id="mk-pub">Create desktop code</button></div>
+    <div class="box" id="pub-box" hidden><span class="secret" id="pub-cmd"></span><button class="ghost" id="copy-pub">Copy</button></div>
+    <div id="dests"></div>
+  </section>
+
+  <section id="s-share">
+    <h2><span class="n">4</span> Share with friends <span class="m">(optional)</span></h2>
+    <p class="m" id="share-what"></p>
+    <div class="box" id="inv-row"><button id="mk-inv">Create invitation link</button></div>
+    <div class="box" id="inv-box" hidden><span class="secret" id="inv"></span><button class="ghost" id="copy-inv">Copy</button></div>
+    <div id="members"></div>
+  </section>
+
+  <section>
+    <div class="box"><label class="m" for="col">Collection</label><select id="col"></select><button class="ghost" id="signout">Sign out</button></div>
+  </section>
+
+  <section id="s-account">
+    <h2>Your account</h2>
+    <div class="box" id="leave-row" hidden><button class="danger" id="leave">Leave this collection</button><span class="m">You lose access at once. The places you added stay in the collection.</span></div>
+    <div class="box"><button class="danger" id="delacct">Delete my account</button><span class="m">Removes your account, sign-in, Shortcut links, stars and collections you own alone. In shared collections your places stay, without your name; ownership passes to another member.</span></div>
+  </section>
+</main>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  function api(m, u, body) {
+    return fetch(u, { method: m, credentials: 'same-origin', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined })
+      .then(function (r) { return r.json().then(function (j) { if (r.status === 401) { location.href = '/signin'; } if (!r.ok) throw new Error(j.error || r.status); return j; }); });
+  }
+  function copy(id) { var t = $(id).textContent; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { $(id).style.outline = '2px solid var(--ok)'; }).catch(function () { var r = document.createRange(); r.selectNodeContents($(id)); getSelection().removeAllRanges(); getSelection().addRange(r); }); }
+  var me;
+  function load() {
+    api('GET', '/api/me').then(function (j) {
+      if (!j.signed_in) { location.href = '/signin'; return; }
+      me = j;
+      $('who').textContent = 'Signed in as ' + (j.user.email || j.user.name) + ' · collection “' + j.collection.name + '” (' + j.collection.role + ')';
+      $('col').innerHTML = j.collections.map(function (c) { return '<option value="' + c.id + '"' + (c.id === j.collection.id ? ' selected' : '') + '>' + esc(c.name) + (c.role === 'owner' ? '' : ' (shared with you)') + '</option>'; }).join('');
+      $('sc-done').textContent = j.intake.connected ? '✓ connected' : '';
+      $('sc-legacy').innerHTML = j.legacy_collection ? '<p class="m">✓ Your existing Shortcut (via the Google Apps Script inbox) keeps working for this collection. A personal link is faster: processing starts at once instead of within a minute.</p>' : '';
+      $('creds').innerHTML = j.intake.credentials.map(function (c) { return '<div class="row"><span>📱 ' + esc(c.label) + ' <span class="m">· created ' + esc(String(c.created_at).slice(0, 10)) + (c.last_used_at ? ' · last used ' + esc(String(c.last_used_at).slice(0, 16).replace('T', ' ')) : ' · not used yet') + '</span></span><button class="danger" data-revoke="' + c.id + '">Revoke</button></div>'; }).join('');
+      var mineDest = j.publisher.destinations.filter(function (d) { return d.user_id === j.user.id; });
+      $('dests').innerHTML = j.publisher.destinations.map(function (d) {
+        return '<div class="row"><span>🗺️ ' + esc(d.owner) + "'s Google Maps · " + esc(d.label || 'desktop') + ' <span class="st-' + esc(d.status) + '">· ' + (d.status === 'ok' ? 'up to date' : d.status === 'pending' ? 'pending' : 'needs attention') + '</span><span class="m">' + (d.online ? ' · publisher online' : ' · publisher offline') + '</span></span>' +
+          ((d.user_id === j.user.id || j.collection.role === 'owner') ? '<button class="danger" data-disc="' + d.id + '">Disconnect</button>' : '') + '</div>';
+      }).join('') || '<p class="m">No Google Maps connected yet. Your places are on the reelocations map either way.</p>';
+      $('mk-pub').textContent = mineDest.length ? 'Reconnect my desktop' : 'Create desktop code';
+      var owner = j.collection.role === 'owner';
+      $('share-what').textContent = owner ? 'Invite up to a few friends. Each signs in with their own Google account, adds Reels from their own iPhone, and sees everything in this collection. As the owner you can remove members and any pin. Members can delete the pins they added.' : 'You are a member of this collection. The owner manages invitations.';
+      $('inv-row').hidden = !owner;
+      $('leave-row').hidden = owner;
+      $('members').innerHTML = j.members.map(function (m) { return '<div class="row"><span>' + (m.role === 'owner' ? '👑 ' : '👤 ') + esc(m.name || m.email) + ' <span class="m">' + esc(m.email || '') + ' · ' + m.role + '</span></span>' + (owner && m.role !== 'owner' ? '<button class="danger" data-rm="' + m.id + '">Remove</button>' : '') + '</div>'; }).join('');
+    }).catch(function (e) { $('who').textContent = 'Could not load: ' + e.message; });
+  }
+  $('mk-link').onclick = function () { api('POST', '/api/intake-link', { label: 'iPhone Shortcut ' + new Date().toISOString().slice(0, 10) }).then(function (j) { $('link').textContent = j.intake_url; $('link-box').hidden = false; load(); }); };
+  $('copy-link').onclick = function () { copy('link'); };
+  $('mk-code').onclick = function () { api('POST', '/api/pairing-codes', { kind: 'intake' }).then(function (j) { $('code').textContent = j.code; $('code').hidden = false; }); };
+  $('mk-pub').onclick = function () { api('POST', '/api/pairing-codes', { kind: 'publisher' }).then(function (j) { $('pub-cmd').textContent = 'npm run cli -- connect ' + location.origin + ' ' + j.code; $('pub-box').hidden = false; }); };
+  $('copy-pub').onclick = function () { copy('pub-cmd'); };
+  $('mk-gl').onclick = function () { api('POST', '/api/gmaps/code').then(function (j) { $('gl-cmd').textContent = 'npm run cli -- gmaps-connect ' + location.origin + ' ' + j.code; $('gl-box').hidden = false; }); };
+  $('copy-gl').onclick = function () { copy('gl-cmd'); };
+  function loadGl() {
+    api('GET', '/api/gmaps/status').then(function (g) {
+      if (!g.connected) { $('gl-done').textContent = ''; $('gl-status').innerHTML = '<p class="m">Not connected.</p>'; return; }
+      var c = g.counts || {}, st = g.status === 'needs_signin' ? '<span class="st-attention">needs sign-in — create a new code and run the command again</span>' : g.status === 'error' ? '<span class="st-attention">' + esc(g.detail || 'error') + '</span>' : '<span class="st-ok">connected</span>';
+      $('gl-done').textContent = g.status === 'ok' || g.status === 'connected' ? '✓ connected' : '';
+      $('gl-status').innerHTML = '<div class="row"><span>📍 List “' + esc(g.list_name) + '” · ' + st + ' <span class="m">· Reels shared since ' + esc(String(g.cutoff_at || '').slice(0, 16).replace('T', ' ')) + ' UTC · saved ' + (c.verified || 0) + ' · pending ' + (c.pending || 0) + ' · failed ' + (c.failed || 0) + ' · need review ' + (c.skipped || 0) + '</span></span><button class="danger" id="gl-disc">Disconnect</button></div>' +
+        (g.problems || []).map(function (x) { return '<div class="m">⚠ ' + esc(x.name) + ': ' + esc(x.detail) + '</div>'; }).join('');
+      $('gl-disc').onclick = function () { if (confirm('Disconnect the Google Maps list? Nothing is removed from Google; the server forgets the session.')) api('DELETE', '/api/gmaps').then(loadGl); };
+    }).catch(function () {});
+  }
+  loadGl();
+  $('mk-inv').onclick = function () { api('POST', '/api/invitations').then(function (j) { $('inv').textContent = j.url; $('inv-box').hidden = false; }); };
+  $('copy-inv').onclick = function () { copy('inv'); };
+  $('col').onchange = function (e) { api('POST', '/api/session/collection', { id: Number(e.target.value) }).then(load); };
+  $('leave').onclick = function () { if (confirm('Leave “' + me.collection.name + '”? You lose access at once; the places you added stay in the collection.')) api('POST', '/api/collection/leave').then(function () { location.href = '/'; }).catch(function (e) { alert(e.message); }); };
+  $('delacct').onclick = function () {
+    var t = prompt('Delete your reelocations account? This cannot be undone. Type DELETE to confirm.');
+    if (t !== 'DELETE') return;
+    api('DELETE', '/api/account', { confirm: 'DELETE' }).then(function () { location.href = '/signin'; }).catch(function (e) { alert(e.message); });
+  };
+  $('signout').onclick = function () { api('POST', '/auth/signout').then(function () { location.href = '/signin'; }); };
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-revoke],[data-disc],[data-rm]'); if (!t) return;
+    if (t.dataset.revoke && confirm('Revoke this Shortcut link? Shares from it will stop working until you connect it again.')) api('DELETE', '/api/credentials/' + t.dataset.revoke).then(load);
+    if (t.dataset.disc && confirm('Disconnect this Google Maps destination? Nothing is deleted from Google; it just stops receiving updates.')) api('DELETE', '/api/destinations/' + t.dataset.disc).then(load);
+    if (t.dataset.rm && confirm('Remove this member? Their Shortcut links for this collection stop working.')) api('DELETE', '/api/members/' + t.dataset.rm).then(load);
+  });
+  load();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+ "recordedAt": "2026-11-10T17:08:08.201Z",
+ "method": "GET",
+ "url": "https://nominatim.openstreetmap.org/reverse?lat=31.46977&lon=35.39145&zoom=10&format=jsonv2&addressdetails=1&accept-language=en",
+ "requestBody": null,
+ "status": 200,
+ "contentType": "application/json; charset=utf-8",
+ "body": "{\"place_id\":48073732,\"licence\":\"Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright\",\"osm_type\":\"relation\",\"osm_id\":1376912,\"lat\":\"31.1384840\",\"lon\":\"35.3095255\",\"category\":\"boundary\",\"type\":\"administrative\",\"place_rank\":16,\"importance\":0.4452007487319592,\"addresstype\":\"city\",\"name\":\"Tamar Regional Council\",\"display_name\":\"Tamar Regional Council, Beersheba Subdistrict, South District, Israel\",\"address\":{\"city\":\"Tamar Regional Council\",\"state_district\":\"Beersheba Subdistrict\",\"state\":\"South District\",\"ISO3166-2-lvl4\":\"IL-D\",\"country\":\"Israel\",\"country_code\":\"il\"},\"boundingbox\":[\"30.7783001\",\"31.4966472\",\"34.9497874\",\"35.4760120\"]}"
+}

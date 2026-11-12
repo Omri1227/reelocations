@@ -1,0 +1,9 @@
+{
+ "recordedAt": "2026-11-10T20:46:59.971Z",
+ "method": "GET",
+ "url": "https://nominatim.openstreetmap.org/reverse?lat=63.53210&lon=-19.51129&zoom=10&format=jsonv2&addressdetails=1&accept-language=en",
+ "requestBody": null,
+ "status": 200,
+ "contentType": "application/json; charset=utf-8",
+ "body": "{\"place_id\":288052884,\"licence\":\"Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright\",\"osm_type\":\"relation\",\"osm_id\":8803280,\"lat\":\"63.6538308\",\"lon\":\"-19.8426215\",\"category\":\"boundary\",\"type\":\"administrative\",\"place_rank\":12,\"importance\":0.43843044507974105,\"addresstype\":\"county\",\"name\":\"Rangárþing eystra\",\"display_name\":\"Rangárþing eystra, Southern Region, Iceland\",\"address\":{\"county\":\"Rangárþing eystra\",\"ISO3166-2-lvl6\":\"IS-RGE\",\"state_district\":\"Southern Region\",\"ISO3166-2-lvl5\":\"IS-8\",\"country\":\"Iceland\",\"country_code\":\"is\"},\"boundingbox\":[\"63.4608298\",\"63.8457368\",\"-20.5678654\",\"-19.0795000\"]}"
+}

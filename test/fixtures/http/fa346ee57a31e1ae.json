@@ -1,0 +1,9 @@
+{
+ "recordedAt": "2026-11-10T20:46:58.908Z",
+ "method": "GET",
+ "url": "https://nominatim.openstreetmap.org/search?q=Sk%C3%B3gafoss&format=jsonv2&limit=6&extratags=1&namedetails=1&accept-language=en",
+ "requestBody": null,
+ "status": 200,
+ "contentType": "application/json; charset=utf-8",
+ "body": "[{\"place_id\":286804973,\"licence\":\"Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright\",\"osm_type\":\"node\",\"osm_id\":270937065,\"lat\":\"63.5321038\",\"lon\":\"-19.5112920\",\"category\":\"waterway\",\"type\":\"waterfall\",\"place_rank\":20,\"importance\":0.3971205322578132,\"addresstype\":\"waterfall\",\"name\":\"Skogafoss\",\"display_name\":\"Skogafoss, Rangárþing eystra, Southern Region, Iceland\",\"extratags\":{\"height\": \"60\", \"wikidata\": \"Q1130718\", \"wikipedia\": \"is:Skógafoss\"},\"namedetails\":{\"name\": \"Skógafoss\", \"name:en\": \"Skogafoss\", \"name:is\": \"Skógafoss\", \"name:ru\": \"Скоугафосс\", \"name:uk\": \"Скоуґафосс\", \"name:zh\": \"斯科加瀑布\"},\"boundingbox\":[\"63.5320538\",\"63.5321538\",\"-19.5113420\",\"-19.5112420\"]},{\"place_id\":285712052,\"licence\":\"Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright\",\"osm_type\":\"relation\",\"osm_id\":6149203,\"lat\":\"63.5495018\",\"lon\":\"-19.4949498\",\"category\":\"leisure\",\"type\":\"nature_reserve\",\"place_rank\":24,\"importance\":0.08000999999999997,\"addresstype\":\"nature_reserve\",\"name\":\"Skógafoss\",\"display_name\":\"Skógafoss, Rangárþing eystra, Southern Region, Iceland\",\"extratags\":{\"boundary\": \"protected_area\", \"protect_class\": \"3\"},\"namedetails\":{\"name\": \"Skógafoss\", \"name:is\": \"Skógafoss\", \"alt_name\": \"Skógarfoss\"},\"boundingbox\":[\"63.5212550\",\"63.5777215\",\"-19.5237411\",\"-19.4450255\"]}]"
+}
