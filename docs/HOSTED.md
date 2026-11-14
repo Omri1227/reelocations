@@ -138,11 +138,23 @@ with the computer off, so the place opens its normal place card in the Google Ma
   retired; saved lists can only be exported (Takeout). So the server uses Google Maps' own **Save** action in headless
   Chromium with the account's browser session — the same technique as the My Maps publisher, run on the server. This is
   automation of a person's own account in their own session; Google may ask for sign-in again or change the page.
-- **Connect:** Setup → *Create Google Maps code* (30 minutes, single use) → on a computer with Chrome:
-  `npm run cli -- gmaps-connect https://<your-app> <code> [--list Reelocations]`. A temporary Chrome profile opens; you
-  sign in on Google's own page; the CLI sends only the browser session (cookies) to `POST /api/gmaps/session` and deletes
-  the temporary profile. The server stores it as `/data/private/gmaps/session-<id>.json` (mode 600). It is never logged
-  and never written to the database. Reconnect the same way; Setup → *Disconnect* deletes it.
+- **Connect (and sign in again): Setup → *Sign in to Google*, on any device — an iPhone is enough.** The server opens
+  Google's own sign-in page in its headless Chromium with a new profile and shows it in Setup as a picture refreshed
+  about once a second; taps and typed text are passed on (`/api/gmaps/signin/{start,state,screen,input,cancel}`, signed
+  in members only; only the person who started it sees it; one at a time; 10 minutes). When Google Maps opens, the
+  server proves the sign-in with the real Save menu and the profile becomes the destination's session:
+  `/data/private/gmaps/session-<id>.profile/` (the session Chromium uses and keeps refreshed) plus
+  `session-<id>.json` (a cookie snapshot, rewritten atomically after each signed-in run; it rebuilds a missing or
+  damaged profile). What is typed — the Google password too — travels over HTTPS to your server and into Google's
+  page; it is never stored or logged. Passkey prompts cannot be answered remotely (choose *Try another way*); a
+  "tap Yes on your phone" prompt works. Signing in again keeps the destination row, so the list, the queue, the saved
+  records and the cutoff stay; a different Google account than the connected one is refused (disconnect first to
+  switch) — only a hash and a masked label of the address are stored. Setup → *Disconnect* deletes profile and snapshot.
+- **Other way (a computer with Chrome):** Setup → *Create Google Maps code* → `npm run cli -- gmaps-connect
+  https://<your-app> <code> [--list Reelocations]`; you sign in in a temporary Chrome profile and only the cookies are
+  uploaded (`POST /api/gmaps/session`). **Such a copied session does not last:** on 2026-11-12 two of them were signed
+  out by Google 1½–4 hours after connecting, with no restart in between (see *Session health*). The command now starts
+  Chrome with device-bound sessions off, which is untested; prefer signing in on the server.
 - **Fresh start:** the collection's FIRST successful connection is the cutoff (`kv gmaps:cutoff:<collection>`). Only
   Reels the server receives after it are saved; places from earlier Reels never are — also after reconnecting,
   disconnecting, retries, redeploys or re-processing an old Reel. A stale queue row for an old place is marked `excluded`.
@@ -154,14 +166,29 @@ with the computer off, so the place opens its normal place card in the Google Ma
   saving, the server opens the listing by Place ID (`/maps/search/?api=1&query=…&query_place_id=…`) and checks the card:
   the name (no extra branch words) and the street/house numbers (postal codes ignored; with a single house number, the
   street name too). A listing already in the list is left alone; a second list with the same name is never created.
-- **Session health:** signed out, Save opens Google's sign-in page; that marks the destination **needs sign-in** (Setup
-  shows it) and items wait until you reconnect. The server's headless Maps page shows neither a "Sign in" button nor
-  the account avatar, so the page itself is not used to decide. The session file is on the volume and survives
-  restarts and redeploys (verified: one connection, about ten redeploys, saves kept working).
+- **Session health:** the server's headless Maps page shows neither a "Sign in" button nor the account avatar, so the
+  page is not used to decide; the Save click is. **Needs sign-in** is set only when Save leads to one of Google's
+  sign-in pages (`accounts.google.*/…/signin/…`, account chooser, challenge), Google stays there for 4 s, and the
+  same happens on a second look at the same listing. A redirect that passes through accounts.google.com and returns
+  (Google re-checking or rotating cookies), a menu that does not open, or a timeout is an ordinary failed attempt with
+  back-off — never a sign-out. The item that met the sign-in page is not counted as failed and is saved after the next
+  sign-in. A **session check** (about hourly per destination, `GMAPS_CHECK_MIN`; every 6 h while signed out) opens the
+  latest saved listing's Save menu without saving: it keeps an idle session in use, logs `session check ok`, notices a
+  sign-out when it happens, and clears a "needs sign-in" by itself if the session works after all. One browser per
+  session at a time (cycle, check, probe and sign-in share a lock), so older state never overwrites newer; the snapshot
+  is not rewritten after a sign-out. Profile and snapshot are on the volume and survive restarts and redeploys; a
+  profile lock left by a killed container is removed on start.
+- **Why sessions were lost (diagnosed 2026-11-13 on Railway):** both "needs sign-in" events came from a save attempt,
+  not a restart or redeploy (same deployment throughout). With the stored session, Save answered `302 /ServiceLogin` →
+  `/v3/signin/accountchooser` listing the account as *Signed out*; all cookies were still present and unexpired, and
+  `__Secure-1PSIDTS` had never been rotated since the sign-in. So Google ended the session on its side. Both sessions
+  had been signed in with Chrome on a Windows PC and copied to the server; Chrome 146+ on Windows binds Google sessions
+  to the device (Device Bound Session Credentials), and the copied cookies cannot be renewed elsewhere. This is the
+  best-supported explanation, not something Google confirms per session.
 - **Operator tools (admin token):** `POST /api/admin/gmaps-probe` `{collection, place_id, name, address?, menu?,
   newlist?, diagnostics?}` opens a listing with the collection's session and reports the card, the Save menu's lists
   (`menu`), the New-list dialog with a screenshot (`newlist`, cancelled) or cookie names/expiry (`diagnostics`, never
-  values) — it never saves. `POST /api/admin/gmaps-retry` `{collection, items_now?}` clears "needs sign-in" and, with
+  values) — it never saves, and it uses the destination's own profile under its lock. `POST /api/admin/gmaps-retry` `{collection, items_now?}` clears "needs sign-in" and, with
   `items_now`, retries failed and held-back items at once.
 - **Verified (2026-11-12, Railway, a dedicated test account):** six restaurant Reels shared from an iPhone after
   connecting (Kyoto, Tokyo, San Francisco) were saved to **Reelocations** as their real listings; the list was created by

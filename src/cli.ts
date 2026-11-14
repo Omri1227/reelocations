@@ -208,7 +208,10 @@ async function main() {
     const { chromium } = await import('playwright-core');
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'reelocations-gmaps-'));
     const ctx = await chromium.launchPersistentContext(dir, { executablePath: findChrome(cfg.chromePath), headless: false, viewport: { width: 1200, height: 860 },
-      ignoreDefaultArgs: ['--enable-automation'], args: ['--disable-blink-features=AutomationControlled', '--no-first-run', '--no-default-browser-check'] });
+      // Device-bound sessions off for this temporary profile: a session bound to this PC is signed out by Google a few
+      // hours after it is copied to the server (seen twice on 2026-11-12). Signing in on the server itself
+      // (Setup → "Sign in to Google") avoids the copy altogether and is the recommended way.
+      ignoreDefaultArgs: ['--enable-automation'], args: ['--disable-blink-features=AutomationControlled', '--no-first-run', '--no-default-browser-check', '--disable-features=DeviceBoundSessions,EnableBoundSessionCredentials'] });
     try {
       const page = ctx.pages()[0] ?? await ctx.newPage();
       await page.goto('https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fwww.google.com%2Fmaps%3Fhl%3Den');

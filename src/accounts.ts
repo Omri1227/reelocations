@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import type { Store } from './db.ts';
 import { nowIso } from './db.ts';
+import { removeSessionFiles } from './sync/gmapsBrowser.ts';
 
 /**
  * Accounts, collections, sessions, invitations, pairing codes and revocable credentials.
@@ -140,7 +141,7 @@ export class Accounts {
   private dropGmapsOf(userId: number, collectionId: number) {
     if (!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='gmaps_destinations'").get()) return;
     for (const d of this.db.prepare('SELECT id, state_file FROM gmaps_destinations WHERE collection_id=? AND user_id=? AND disconnected_at IS NULL').all(collectionId, userId) as any[]) {
-      try { if (d.state_file) fs.rmSync(d.state_file, { force: true }); } catch { /* already gone */ }
+      removeSessionFiles(d.state_file);
       this.db.prepare("UPDATE gmaps_destinations SET disconnected_at=?, status='disconnected' WHERE id=?").run(nowIso(), d.id);
     }
   }
@@ -211,7 +212,10 @@ export class Accounts {
       this.db.prepare('DELETE FROM kv WHERE k LIKE ?').run(`country_order:${userId}:%`);
       this.db.prepare('DELETE FROM users WHERE id=?').run(userId);
     });
-    for (const f of files) { try { fs.rmSync(f, { force: true }); } catch { /* already gone */ } }
+    for (const f of files) {
+      try { fs.rmSync(f, { force: true }); } catch { /* already gone */ }
+      if (/session-\d+\.json$/.test(f)) removeSessionFiles(f); // a Google Maps session: its browser profile too
+    }
     this.store.log('info', 'accounts', `account ${userId} deleted (left ${out.left}, ownership passed on ${out.transferred}, collections deleted ${out.deleted})`);
     return out;
   }

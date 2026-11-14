@@ -35,6 +35,14 @@ button.danger{background:transparent;color:var(--bad);border-color:var(--bad)}
 code,.secret{font:14px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;word-break:break-all;flex:1;min-width:0}
 .code{font-size:26px;letter-spacing:.12em;text-align:center}
 .row{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+#gs{position:fixed;inset:0;z-index:50;background:var(--bg);overflow:auto;-webkit-overflow-scrolling:touch}
+.gs-in{max-width:444px;margin:0 auto;padding:calc(10px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom))}
+.gs-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.gs-top button,.gs-keys button{padding:8px 12px}
+.gs-screen{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;aspect-ratio:412/780}
+.gs-screen img{display:block;width:100%;height:100%;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.gs-keys{display:flex;gap:6px;margin:8px 0 0;flex-wrap:wrap}
+.gs-keys input{flex:1;min-width:0;font:inherit;padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg)}
 .st-ok{color:var(--ok)}.st-pending{color:var(--warn)}.st-attention{color:var(--bad)}
 select{font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
 </style>
@@ -67,13 +75,14 @@ select{font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--lin
   <section id="s-glist">
     <h2><span class="n">2</span> Save places to a Google Maps list <span class="m">(optional, beta)</span> <span id="gl-done" class="done"></span></h2>
     <p class="m">The server saves each place's <b>real Google Maps listing</b> (the right branch) to a list in your Google account, so it opens its normal place card in the Google Maps app — even when your computer is off. Google has no API for this, so the server uses your Google Maps session in a browser. Only Reels you share <b>after you first connect</b> are saved (places you saved before are left out), and only once their listing is verified; approximate or unclear ones wait in the Review Queue.</p>
-    <ol>
-      <li>Tap <b>Create Google Maps code</b>, then run the command shown on a computer with Chrome and this project.</li>
-      <li>Sign in to Google in the window that opens (a separate test account is recommended at first). Only the browser session is sent to this server; your password never is.</li>
-    </ol>
-    <div class="box"><button id="mk-gl">Create Google Maps code</button></div>
-    <div class="box" id="gl-box" hidden><span class="secret" id="gl-cmd"></span><button class="ghost" id="copy-gl">Copy</button></div>
+    <p class="m">Tap <b>Sign in to Google</b>: Google's own sign-in page opens in the server's browser and is shown here, so you can do it on this iPhone. What you type goes over a secure connection to this server and into Google's page; it is not stored or logged. The server keeps only its browser's signed-in session. Signing in again keeps your list, what was saved, and what is waiting.</p>
+    <div class="box"><button id="gs-start">Sign in to Google</button></div>
     <div id="gl-status"></div>
+    <details><summary class="m">Other way: sign in on a computer</summary>
+      <p class="m">Tap <b>Create Google Maps code</b>, run the command shown on a computer with Chrome and this project, and sign in to Google in the window that opens. Only the browser session is sent to this server. Google may sign such a copied session out again after a few hours; signing in here on the server lasts.</p>
+      <div class="box"><button class="ghost" id="mk-gl">Create Google Maps code</button></div>
+      <div class="box" id="gl-box" hidden><span class="secret" id="gl-cmd"></span><button class="ghost" id="copy-gl">Copy</button></div>
+    </details>
   </section>
 
   <section id="s-maps">
@@ -107,6 +116,25 @@ select{font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--lin
     <div class="box"><button class="danger" id="delacct">Delete my account</button><span class="m">Removes your account, sign-in, Shortcut links, stars and collections you own alone. In shared collections your places stay, without your name; ownership passes to another member.</span></div>
   </section>
 </main>
+<div id="gs" hidden>
+  <div class="gs-in">
+    <div class="gs-top"><b>Google sign-in · in the server's browser</b><button class="ghost" id="gs-cancel">Cancel</button></div>
+    <p class="m" id="gs-msg">Opening Google's sign-in page…</p>
+    <div class="gs-screen"><img id="gs-img" alt="Google's sign-in page in the server's browser" draggable="false"></div>
+    <form id="gs-form" class="gs-keys" autocomplete="off">
+      <input id="gs-text" type="text" placeholder="Tap a field above, type here" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go">
+      <button type="submit">Send ⏎</button>
+    </form>
+    <div class="gs-keys">
+      <button type="button" class="ghost" data-gs-type="1">Type only</button>
+      <button type="button" class="ghost" data-gs-key="Enter">⏎</button>
+      <button type="button" class="ghost" data-gs-key="Backspace">⌫</button>
+      <button type="button" class="ghost" data-gs-key="Tab">Tab</button>
+      <button type="button" class="ghost" data-gs-scroll="-300">▲</button>
+      <button type="button" class="ghost" data-gs-scroll="300">▼</button>
+    </div>
+  </div>
+</div>
 <script>
 (function () {
   'use strict';
@@ -149,15 +177,54 @@ select{font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--lin
   $('copy-gl').onclick = function () { copy('gl-cmd'); };
   function loadGl() {
     api('GET', '/api/gmaps/status').then(function (g) {
-      if (!g.connected) { $('gl-done').textContent = ''; $('gl-status').innerHTML = '<p class="m">Not connected.</p>'; return; }
-      var c = g.counts || {}, st = g.status === 'needs_signin' ? '<span class="st-attention">needs sign-in — create a new code and run the command again</span>' : g.status === 'error' ? '<span class="st-attention">' + esc(g.detail || 'error') + '</span>' : '<span class="st-ok">connected</span>';
+      if (!g.connected) { $('gl-done').textContent = ''; $('gs-start').textContent = 'Sign in to Google'; $('gl-status').innerHTML = '<p class="m">Not connected.</p>'; return; }
+      $('gs-start').textContent = g.status === 'needs_signin' ? 'Sign in to Google again' : 'Sign in to Google again (only if needed)';
+      var c = g.counts || {}, st = g.status === 'needs_signin' ? '<span class="st-attention">needs sign-in — Google signed the server out; tap <b>Sign in to Google again</b></span>' : g.status === 'error' ? '<span class="st-attention">' + esc(g.detail || 'error') + '</span>' : '<span class="st-ok">connected</span>';
       $('gl-done').textContent = g.status === 'ok' || g.status === 'connected' ? '✓ connected' : '';
-      $('gl-status').innerHTML = '<div class="row"><span>📍 List “' + esc(g.list_name) + '” · ' + st + ' <span class="m">· Reels shared since ' + esc(String(g.cutoff_at || '').slice(0, 16).replace('T', ' ')) + ' UTC · saved ' + (c.verified || 0) + ' · pending ' + (c.pending || 0) + ' · failed ' + (c.failed || 0) + ' · need review ' + (c.skipped || 0) + '</span></span><button class="danger" id="gl-disc">Disconnect</button></div>' +
+      $('gl-status').innerHTML = '<div class="row"><span>📍 List “' + esc(g.list_name) + '” · ' + st + ' <span class="m">· Reels shared since ' + esc(String(g.cutoff_at || '').slice(0, 16).replace('T', ' ')) + ' UTC · saved ' + (c.verified || 0) + ' · pending ' + (c.pending || 0) + ' · failed ' + (c.failed || 0) + ' · need review ' + (c.skipped || 0) + (g.account_label ? ' · account ' + esc(g.account_label) : '') + (g.last_ok_at ? ' · signed in as of ' + esc(String(g.last_ok_at).slice(0, 16).replace('T', ' ')) + ' UTC' : '') + '</span></span><button class="danger" id="gl-disc">Disconnect</button></div>' +
         (g.problems || []).map(function (x) { return '<div class="m">⚠ ' + esc(x.name) + ': ' + esc(x.detail) + '</div>'; }).join('');
       $('gl-disc').onclick = function () { if (confirm('Disconnect the Google Maps list? Nothing is removed from Google; the server forgets the session.')) api('DELETE', '/api/gmaps').then(loadGl); };
     }).catch(function () {});
   }
   loadGl();
+  // ---- Google sign-in in the server's browser: a picture of the page, taps and typing passed on ----
+  var gs = { on: false, w: 412, h: 780, live: false };
+  function gsShow(on) { gs.on = on; gs.live = on; $('gs').hidden = !on; document.body.style.overflow = on ? 'hidden' : ''; if (!on) { $('gs-text').value = ''; $('gs-img').removeAttribute('src'); } }
+  function gsSend(body) { return api('POST', '/api/gmaps/signin/input', body).catch(function (e) { $('gs-msg').textContent = e.message; }); }
+  function gsFrame() {
+    if (!gs.on || !gs.live) return;
+    fetch('/api/gmaps/signin/screen?t=' + Date.now(), { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.blob() : Promise.reject(); }).then(function (b) {
+      var old = $('gs-img').src; $('gs-img').src = URL.createObjectURL(b); if (old && old.indexOf('blob:') === 0) setTimeout(function () { URL.revokeObjectURL(old); }, 500);
+      setTimeout(gsFrame, 600);
+    }).catch(function () { setTimeout(gsFrame, 1500); });
+  }
+  function gsState() {
+    if (!gs.on) return;
+    api('GET', '/api/gmaps/signin/state').then(function (j) {
+      gs.w = j.width; gs.h = j.height;
+      if (j.status === 'waiting') {
+        var pw = j.focus === 'password'; if (($('gs-text').type === 'password') !== pw) $('gs-text').type = pw ? 'password' : 'text';
+        $('gs-msg').textContent = 'Tap a field in the picture, type below, then Send. ' + Math.ceil(j.seconds_left / 60) + ' min left. Passkey prompts cannot be used here: choose “Try another way”.';
+        setTimeout(gsState, 1500);
+      } else if (j.status === 'verifying') { gs.live = false; $('gs-msg').textContent = 'Signed in. Checking Google Maps’ Save menu on the server…'; setTimeout(gsState, 1500); }
+      else if (j.status === 'connected') { gsShow(false); loadGl(); alert('Connected. The server saves new places to your Google Maps list from now on; places that were waiting are saved in the next minutes.'); }
+      else { gs.live = false; $('gs-msg').textContent = (j.detail || j.status) + ' Tap Cancel to close.'; }
+    }).catch(function (e) { gs.live = false; $('gs-msg').textContent = e.message + ' — tap Cancel and start again.'; });
+  }
+  $('gs-start').onclick = function () {
+    gsShow(true); gs.live = false; $('gs-msg').textContent = 'Opening Google’s sign-in page on the server… (up to a minute)';
+    api('POST', '/api/gmaps/signin/start').then(function (j) { gs.w = j.width; gs.h = j.height; gs.live = true; gsFrame(); gsState(); }).catch(function (e) { $('gs-msg').textContent = e.message + ' Tap Cancel to close.'; });
+  };
+  $('gs-cancel').onclick = function () { api('POST', '/api/gmaps/signin/cancel').catch(function () {}).then(function () { gsShow(false); loadGl(); }); };
+  $('gs-img').addEventListener('click', function (e) { var r = e.currentTarget.getBoundingClientRect(); gsSend({ tap: { x: Math.round((e.clientX - r.left) * gs.w / r.width), y: Math.round((e.clientY - r.top) * gs.h / r.height) } }); });
+  function gsType(thenEnter) { var t = $('gs-text').value; $('gs-text').value = ''; var p = t ? gsSend({ text: t }) : Promise.resolve(); if (thenEnter) p.then(function () { gsSend({ key: 'Enter' }); }); }
+  $('gs-form').addEventListener('submit', function (e) { e.preventDefault(); gsType(true); });
+  $('gs').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('button') : null; if (!b) return;
+    if (b.getAttribute('data-gs-key')) gsSend({ key: b.getAttribute('data-gs-key') });
+    else if (b.getAttribute('data-gs-scroll')) gsSend({ scroll: Number(b.getAttribute('data-gs-scroll')) });
+    else if (b.getAttribute('data-gs-type')) gsType(false);
+  });
   $('mk-inv').onclick = function () { api('POST', '/api/invitations').then(function (j) { $('inv').textContent = j.url; $('inv-box').hidden = false; }); };
   $('copy-inv').onclick = function () { copy('inv'); };
   $('col').onchange = function (e) { api('POST', '/api/session/collection', { id: Number(e.target.value) }).then(load); };

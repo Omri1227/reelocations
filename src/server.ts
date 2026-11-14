@@ -26,7 +26,9 @@ import { Accounts, verifyGoogleIdToken, type GoogleIdentity } from './accounts.t
 import { backfillCuisines, backfillGoogleTypes, isCuisine } from './cuisine.ts';
 import { refineGenericCategories } from './categories.ts';
 import { allowanceFromStore, setBalance } from './aiUsage.ts';
-import { chromiumLauncher, connectGmaps, disconnectGmaps, ensureGmapsTables, gmapsCycle, gmapsStatus } from './sync/savedListRunner.ts';
+import { connectGmaps, disconnectGmaps, ensureGmapsTables, gmapsCheck, gmapsCycle, gmapsStatus } from './sync/savedListRunner.ts';
+import { lockKey, profileLauncher, waitLock } from './sync/gmapsBrowser.ts';
+import { GmapsSignin, remoteBrowser, type RemoteBrowser } from './sync/gmapsSignin.ts';
 import { openListing, probeListMenu, probeNewList, readSaveState, sessionDiagnostics } from './sync/savedList.ts';
 import { findChrome } from './sync/mymaps.ts';
 import { buildExport, collectionSyncStatus, connectDestination, destinationForCredential, disconnectDestination, recordReport } from './destinations.ts';
@@ -39,6 +41,8 @@ export interface ServerOptions {
   port?: number; appToken?: string; workerIntervalMs?: number; app?: App; makeApp?: () => App; startWorker?: boolean; sseCheckMs?: number;
   /** Google Maps list publisher browser (null = off; default = headless Chromium). */
   gmapsLauncher?: Parameters<typeof gmapsCycle>[1] | null;
+  /** The browser for Setup → "Sign in to Google" (default = headless Chromium; tests inject a fake). */
+  gmapsSigninBrowser?: (dir: string, viewport: { width: number; height: number }) => Promise<RemoteBrowser>;
   /** Google OAuth client id (GOOGLE_OAUTH_CLIENT_ID); tests inject a verifier instead of Google's keys. */
   googleClientId?: string; verifyIdToken?: (token: string) => Promise<GoogleIdentity>;
   publicUrl?: string;
@@ -82,6 +86,7 @@ export function startServer(o: ServerOptions = {}) {
     ],
   };
 
+  const gmapsLaunch = () => o.gmapsLauncher ?? profileLauncher(findChrome(app.cfg.chromePath));
   // ---------------- worker: one cycle at a time; a share during a cycle schedules one more ----------------
   let running: Promise<void> | null = null; let again = false; let paused = false;
   const evidenceFor = (pid: string) => app.store.linksForPlace(pid).flatMap((l) => { const r = app.store.getReel(l.reel_key); const e = r?.evidence_json ? JSON.parse(r.evidence_json) : null; return [...(e?.texts ?? []).map((t: any) => String(t.text ?? '')), ...app.store.notesFor(l.reel_key)]; });
@@ -105,7 +110,10 @@ export function startServer(o: ServerOptions = {}) {
         // Google Maps lists (server-side publisher): a few verified listings per cycle, only when one is connected.
         if (process.env.GMAPS_LIST_SYNC !== 'off' && o.gmapsLauncher !== null) {
           try {
-            const g = await gmapsCycle(app.store, o.gmapsLauncher ?? chromiumLauncher(findChrome(app.cfg.chromePath)), { log });
+            const launch = gmapsLaunch();
+            // Session check first (about hourly per destination): a session that works again continues saving in this same pass.
+            await gmapsCheck(app.store, launch, { log, everyMin: Number(process.env.GMAPS_CHECK_MIN ?? 60) || 60 });
+            const g = await gmapsCycle(app.store, launch, { log });
             if (g.saved + g.failed + g.skipped) log(`google maps list: ${g.saved} saved, ${g.failed} failed, ${g.skipped} need review`);
           } catch (e) { log(`google maps list failed: ${(e as Error).message}`); }
         }
@@ -114,6 +122,11 @@ export function startServer(o: ServerOptions = {}) {
     })().finally(() => { running = null; });
     return running;
   };
+  const gmapsSignin = new GmapsSignin({
+    store: () => app.store, dataDir: () => app.cfg.dataDir, log,
+    open: o.gmapsSigninBrowser ?? remoteBrowser(() => findChrome(app.cfg.chromePath)),
+    onConnected: () => { setTimeout(() => void cycle('gmaps signed in'), 10); },
+  });
   const interval = o.workerIntervalMs ?? Number(process.env.WORKER_INTERVAL_SEC ?? 60) * 1000;
   const timer = o.startWorker === false ? null : setInterval(() => { void cycle('timer'); }, interval);
   if (o.startWorker !== false) setTimeout(() => void cycle('startup'), 1500);
@@ -340,15 +353,21 @@ export function startServer(o: ServerOptions = {}) {
         if (req.method === 'POST' && p === '/api/admin/gmaps-probe') {
           // Operator check from the server itself: open one listing by Place ID with the collection's session (or none).
           const b = await readJson(req); ensureGmapsTables(app.store);
-          const d = b.collection ? app.store.db.prepare('SELECT state_file FROM gmaps_destinations WHERE collection_id=? AND disconnected_at IS NULL').get(Number(b.collection)) as any : null;
-          const { chromium } = await import('playwright-core');
-          const browser = await chromium.launch({ executablePath: findChrome(app.cfg.chromePath), headless: true, args: ['--no-sandbox'] });
-          try {
-            const ctx = await browser.newContext({ storageState: d?.state_file || undefined, locale: 'en-US', viewport: { width: 1280, height: 900 } });
-            const page = await ctx.newPage();
+          const d = b.collection ? app.store.db.prepare('SELECT id, state_file FROM gmaps_destinations WHERE collection_id=? AND disconnected_at IS NULL').get(Number(b.collection)) as any : null;
+          const probe = async (page: any) => {
             const card = await openListing(page, { googlePlaceId: String(b.place_id), name: String(b.name ?? ''), address: b.address ?? null });
             return json(res, 200, { card, session: d ? 'collection session' : 'signed out', state: await readSaveState(page), diagnostics: b.diagnostics ? await sessionDiagnostics(page) : undefined, menu: b.menu ? await probeListMenu(page) : undefined, newlist: b.newlist ? await probeNewList(page) : undefined });
-          } finally { await browser.close(); }
+          };
+          if (d) {
+            // The destination's own browser profile, one user at a time (the save cycle waits for the next pass).
+            const release = await waitLock(lockKey(d.id), 90_000);
+            if (!release) throw httpError(409, 'the session is in use (a save, a check or a sign-in) — try again in a minute');
+            let br: Awaited<ReturnType<ReturnType<typeof gmapsLaunch>>> | undefined;
+            try { br = await gmapsLaunch()(d.state_file); return await probe(br.page); } finally { await br?.close().catch(() => {}); release(); }
+          }
+          const { chromium } = await import('playwright-core');
+          const browser = await chromium.launch({ executablePath: findChrome(app.cfg.chromePath), headless: true, args: ['--no-sandbox'] });
+          try { return await probe(await (await browser.newContext({ locale: 'en-US', viewport: { width: 1280, height: 900 } })).newPage()); } finally { await browser.close(); }
         }
         if (req.method === 'GET' && p === '/api/admin/backup') {
           const tmp = path.join(app.cfg.dataDir, `backup-${Date.now()}.sqlite`);
@@ -465,6 +484,17 @@ export function startServer(o: ServerOptions = {}) {
         setTimeout(() => void cycle('gmaps connected'), 10);
         return json(res, 200, { ok: true, destination_id: id });
       }
+      // Sign in to Google in the server's own browser, from this device (an iPhone is enough). Only the person who
+      // started it sees the page or can type into it; nothing typed is stored or logged.
+      if (p.startsWith('/api/gmaps/signin/')) {
+        const a = needAuth(req, u); const what = p.slice('/api/gmaps/signin/'.length);
+        if (req.method === 'POST' && what === 'start') return json(res, 200, { ok: true, ...(await gmapsSignin.start(a.cid, a.user.id)) });
+        if (req.method === 'GET' && what === 'state') return json(res, 200, await gmapsSignin.state(a.cid, a.user.id));
+        if (req.method === 'GET' && what === 'screen') { const img = await gmapsSignin.screen(a.cid, a.user.id); res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-store' }); res.end(img); return; }
+        if (req.method === 'POST' && what === 'input') { await gmapsSignin.input(a.cid, a.user.id, await readJson(req, 4096)); return json(res, 200, { ok: true }); }
+        if (req.method === 'POST' && what === 'cancel') { await gmapsSignin.cancel(a.cid, a.user.id); return json(res, 200, { ok: true }); }
+        throw httpError(404, 'not found');
+      }
       if (req.method === 'GET' && p === '/api/gmaps/status') { const a = needAuth(req, u); return json(res, 200, gmapsStatus(app.store, a.cid)); }
       if (req.method === 'DELETE' && p === '/api/gmaps') { const a = needAuth(req, u); disconnectGmaps(app.store, a.cid); return json(res, 200, { ok: true }); }
       if (req.method === 'POST' && p === '/api/collection/leave') {
@@ -511,6 +541,7 @@ export function startServer(o: ServerOptions = {}) {
     if (timer) clearInterval(timer); clearInterval(sseTimer); clearInterval(pingTimer);
     for (const c of clients.keys()) c.end();
     paused = true; if (running) await running.catch(() => {});
+    await gmapsSignin.close().catch(() => {});
     await new Promise<void>((r) => { srv.close(() => r()); srv.closeAllConnections(); });
     await app.close();
   };

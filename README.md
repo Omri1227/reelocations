@@ -52,7 +52,7 @@ What is interesting in this codebase, with the file to read for each:
   `src/sync/savedList.ts`)
 - **Writing to Google Maps without an API.** Google has no API for saved lists, so the server drives Google Maps' own
   web UI in headless Chromium with the user's session: a queue with back-off, one save per listing, a "fresh start"
-  date so old places are never bulk-saved, and a visible *needs sign-in* state. (`src/sync/savedListRunner.ts`)
+  date so old places are never bulk-saved, a sign-in done in the server's own browser from your phone, an hourly session check, and a *needs sign-in* state shown only when Google really asks. (`src/sync/savedListRunner.ts`, `gmapsSignin.ts`)
 - **Quality is measured, not asserted.** A labelled set of real Reels plus written fixtures, a holdout split fixed by
   hash before tuning, and a harness that replays the real pipeline against cached lookups (deterministic, US$0).
   Current numbers: **95.7 %** exact place and branch, **97.9 %** pin precision; the last round cut needless reviews
@@ -175,7 +175,7 @@ in a browser signed in to **your** Google account. The website's Google Sign-In 
   numbers), and uses **Save → Reelocations**. Only verified listings are saved; approximate, ambiguous or unmatched
   pins stay in the Review Queue. A save the branch check holds back also appears in the Review Queue: *This is the
   listing* saves it, *None of these* keeps it out. Each listing is saved once; Setup shows saved / pending / failed /
-  needs review and **needs sign-in** when the session expires. Verified end to end on 2026-11-12 (Railway, test
+  needs review and **needs sign-in** when Google ends the session (sign in again from Setup, on your phone). Verified end to end on 2026-11-12 (Railway, test
   account, six Reels, the list and place cards checked on an iPhone) — see [docs/HOSTED.md](docs/HOSTED.md#google-maps-list-beta).
 - **My Maps per country (desktop).** Setup → *Create desktop code* → `npm run cli -- connect <server URL> <code>`,
   rehearse with `publish --test-map`, then set `MYMAPS_REAL_SYNC=true`. `npm run install-task` adds a Windows task

@@ -103,7 +103,7 @@ export async function readSaveState(page: Page): Promise<SaveState> {
 }
 
 /** Signed-in check by the real action, without saving: open the Save menu, read the list names, close it. */
-export async function probeListMenu(page: Page): Promise<{ signedIn: boolean; lists: string[]; items?: unknown[]; menuText?: string; detail: string }> {
+export async function probeListMenu(page: Page): Promise<{ signedIn: boolean | null; lists: string[]; items?: unknown[]; menuText?: string; detail: string }> {
   try {
     const menu = await openListMenu(page);
     await page.waitForTimeout(1500); // the items fill in after the menu appears
@@ -116,8 +116,21 @@ export async function probeListMenu(page: Page): Promise<{ signedIn: boolean; li
     return { signedIn: true, lists: items.map((i) => i.label || i.text).filter(Boolean) as string[], items, menuText, detail: 'the Save menu opened' };
   } catch (e) {
     if ((e as any).code === 'signin') return { signedIn: false, lists: [], detail: (e as Error).message };
-    return { signedIn: false, lists: [], detail: `the Save menu did not open: ${(e as Error).message.split('\n')[0]}` };
+    // Not an answer about the sign-in (a slow page, a changed menu): unknown, never "signed out".
+    return { signedIn: null, lists: [], detail: `the Save menu did not open: ${(e as Error).message.split('\n')[0]}` };
   }
+}
+
+/**
+ * What an accounts.google.* address means for the session (null = not a Google account page):
+ * - 'signin': Google's sign-in pages — account chooser, e-mail, password, "verify it's you". Only a person can continue.
+ * - 'passing': anything else there (the first redirect hop, Google's cookie-rotation page): may return by itself.
+ * Seen on Railway 2026-11-13 for a signed-out session: Save → 302 /ServiceLogin → /v3/signin/accountchooser.
+ */
+export function accountsPageKind(url: string): 'signin' | 'passing' | null {
+  let u: URL; try { u = new URL(url); } catch { return null; }
+  if (u.protocol !== 'https:' || !/^accounts\.google\.(?:com|[a-z]{2,3}|com?\.[a-z]{2})$/.test(u.hostname)) return null;
+  return /\/signin\/|\/accountchooser|\/interactivelogin|\/challenge\//i.test(u.pathname) ? 'signin' : 'passing';
 }
 const ITEM = '[role="menuitemcheckbox"], [role="menuitemradio"], [role="checkbox"], [role="menuitem"]';
 
@@ -126,16 +139,45 @@ const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** The list menu that opens from Save (lists with a checked state, plus "New list"). */
 async function openListMenu(page: Page) {
-  await page.locator(SAVE_BTN).first().click();
   const menu = page.locator('[role="menu"], [role="dialog"]').filter({ hasText: /new list/i }).last();
-  // Whichever comes first: the list menu (signed in) or Google's sign-in page (signed out).
-  const first = await Promise.race([
-    menu.waitFor({ timeout: 20_000 }).then(() => 'menu' as const),
-    page.waitForURL(/accounts\.google\./, { timeout: 20_000 }).then(() => 'signin' as const),
-  ]).catch(() => 'timeout' as const);
-  if (first === 'signin' || /accounts\.google\./.test(page.url())) throw Object.assign(new Error('not signed in (Save opened the Google sign-in page)'), { code: 'signin' });
-  if (first === 'timeout') throw new Error('the Save menu did not open within 20 s');
-  return menu;
+  for (let attempt = 0; ; attempt++) {
+    await page.locator(SAVE_BTN).first().click({ timeout: 20_000 });
+    // Whichever comes first: the list menu (signed in) or a Google account page.
+    const first = await Promise.race([
+      menu.waitFor({ timeout: 20_000 }).then(() => 'menu' as const),
+      page.waitForURL(/^https:\/\/accounts\.google\./, { timeout: 20_000 }).then(() => 'accounts' as const),
+    ]).catch(() => 'timeout' as const);
+    if (first === 'menu') return menu;
+    if (first === 'timeout' && !accountsPageKind(page.url())) throw new Error('the Save menu did not open within 20 s');
+    // "Signed out" only when Google STAYS on a sign-in page. A redirect that passes through accounts.google.com and
+    // comes back (Google re-checking or rotating the session) is not a sign-out, and an account page that is neither
+    // is a failure to retry — never a reason to ask the person to sign in.
+    const settled = await settleAccountsPage(page);
+    if (settled === 'signin') throw Object.assign(new Error(`not signed in (Save opened Google's sign-in page: ${pathOf(page.url())})`), { code: 'signin' });
+    if (settled === 'stuck') throw new Error(`Google's account check did not finish (${pathOf(page.url())})`);
+    if (attempt >= 1) throw new Error('Save went to Google\'s account check and back twice without opening the menu');
+    await page.locator(SAVE_BTN).first().waitFor({ timeout: 30_000 }); // back on the listing: press Save once more
+  }
+}
+const pathOf = (url: string) => { try { const u = new URL(url); return u.hostname + u.pathname; } catch { return '?'; } };
+/** After a redirect to accounts.google.*: 'signin' (a sign-in page for 4 s), 'returned' (left again), or 'stuck'. */
+async function settleAccountsPage(page: Page, maxMs = 20_000): Promise<'signin' | 'returned' | 'stuck'> {
+  const t0 = Date.now(); let signinSince = 0;
+  while (Date.now() - t0 < maxMs) {
+    const kind = accountsPageKind(page.url());
+    if (kind === null) return 'returned';
+    if (kind === 'signin') { signinSince ||= Date.now(); if (Date.now() - signinSince >= 4000) return 'signin'; } else signinSince = 0;
+    await page.waitForTimeout(500);
+  }
+  return 'stuck';
+}
+
+/** The signed-in account's e-mail address according to Google itself (null when it cannot be read). Never logged. */
+export async function signedInEmail(page: Page): Promise<string | null> {
+  try {
+    const r = await page.context().request.get('https://accounts.google.com/ListAccounts?gpsia=1&source=ChromiumBrowser&json=standard', { headers: { origin: 'https://www.google.com' }, timeout: 20_000 });
+    return (await r.text()).match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/)?.[0]?.toLowerCase() ?? null;
+  } catch { return null; }
 }
 /**
  * Is this Save-menu entry the named list? The entry's text is an icon-font glyph, the name, then its privacy and count

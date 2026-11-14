@@ -227,7 +227,7 @@ nor the OpenAI key is required to run the app.</p>
   <tr><td>Google Maps session (beta)<br><code>/data/private/gmaps/session-&lt;id&gt;.json</code></td><td class="opt">Optional</td>
     <td>The collection owner: Setup → <i>Create Google Maps code</i>, then <code>npm run cli -- gmaps-connect https://&lt;your-app&gt; &lt;code&gt;</code> and sign in on Google's page.</td>
     <td>Stored only on the server's private volume (mode 600); never in Git, logs or the database.</td>
-    <td>Saving the real Google Maps listings to that account's list. Expires like any Google sign-in; Setup then shows "needs sign-in".</td></tr>
+    <td>Saving the real Google Maps listings to that account's list. Signed in on the server itself (Setup → Sign in to Google, also from an iPhone) and kept in a browser profile on the volume. If Google ends it, Setup shows "needs sign-in".</td></tr>
   <tr><td>Google account in Chrome</td><td class="opt">Optional</td>
     <td>Each user who publishes: signs in once in the publisher's Chrome profile.</td>
     <td>Local Chrome profile (git-ignored), never sent to the server.</td>
