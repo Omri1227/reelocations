@@ -19,13 +19,66 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
-export const profileOf = (stateFile: string) => `${stateFile.replace(/\.json$/, '')}.profile`;
+const baseOf = (stateFile: string) => stateFile.replace(/\.json$/, '');
+const pointerOf = (stateFile: string) => `${baseOf(stateFile)}.profile-path`;
+/**
+ * The destination's browser profile: session-<id>.profile, or — after a sign-in on the server — the folder the sign-in
+ * happened in (named in session-<id>.profile-path). That browser is still open, and Chromium's folder is not moved.
+ */
+export const profileOf = (stateFile: string) => {
+  try { const p = fs.readFileSync(pointerOf(stateFile), 'utf8').trim(); if (p) return p; } catch { /* default */ }
+  return `${baseOf(stateFile)}.profile`;
+};
+
+/** Drop a destination's browser profile (closing its live browser first). `use` = the sign-in profile that replaces it. */
+export function replaceProfile(stateFile: string, use?: string) {
+  discardBrowser(stateFile);
+  for (const d of new Set([profileOf(stateFile), `${baseOf(stateFile)}.profile`])) {
+    if (use && path.resolve(d) === path.resolve(use)) continue;
+    try { fs.rmSync(d, { recursive: true, force: true }); } catch { /* gone */ }
+  }
+  try { fs.rmSync(pointerOf(stateFile), { force: true }); } catch { /* none */ }
+  if (use) fs.writeFileSync(pointerOf(stateFile), use, { mode: 0o600 });
+}
 
 /** Forget a destination's session: the snapshot and the browser profile. */
 export function removeSessionFiles(stateFile: string | null | undefined) {
   if (!stateFile) return;
+  replaceProfile(stateFile);
   try { fs.rmSync(stateFile, { force: true }); } catch { /* gone */ }
-  try { fs.rmSync(profileOf(stateFile), { recursive: true, force: true }); } catch { /* gone */ }
+}
+
+// ---------------- the live browser: one per destination, kept open ----------------
+/**
+ * Why the browser stays open (found 2026-11-14): a session signed in on the server was dead on Google's side about a
+ * minute later — the cookies were present in the next browser, but Google's own account check listed 0 accounts. The
+ * only thing that had happened in between was the handover: the browser that signed in was closed and a new one was
+ * started with its cookies. To Google that is a session appearing in another browser (what stolen cookies look like),
+ * and the same handover killed every earlier session within minutes to hours. So the browser that signs in is the
+ * browser that saves, like a person's own browser that stays open: it is closed only when the server stops (the
+ * snapshot is written first) or when the destination signs in again or disconnects.
+ */
+interface Live { ctx: any; page: any }
+const live = new Map<string, Live>();
+const keyOf = (stateFile: string) => path.resolve(stateFile);
+/** Keep the live cookies as the snapshot — only while they are still a signed-in session (never replace one with nothing). */
+async function keepSnapshot(stateFile: string, ctx: any) { const st = await ctx.storageState(); if (hasGoogleSignin(st.cookies)) writeSnapshot(stateFile, st); }
+/** This open browser is now the destination's browser (the sign-in hands its browser over). */
+export function adoptBrowser(stateFile: string, ctx: any) {
+  const k = keyOf(stateFile); const pages = ctx.pages();
+  live.set(k, { ctx, page: pages[pages.length - 1] ?? null });
+  ctx.on?.('close', () => { if (live.get(k)?.ctx === ctx) live.delete(k); });
+}
+/** Close a destination's live browser without keeping its cookies (it is being replaced or disconnected). */
+export function discardBrowser(stateFile: string) {
+  const k = keyOf(stateFile); const l = live.get(k); live.delete(k);
+  void l?.ctx.close().catch(() => {});
+}
+export const hasLiveBrowser = (stateFile: string) => live.has(keyOf(stateFile));
+/** Server shutdown: snapshot and close every live browser (Chromium writes its profile on a proper close). */
+export async function closeAllBrowsers() {
+  const all = [...live.entries()]; live.clear();
+  await Promise.all(all.map(async ([k, l]) => { await keepSnapshot(k, l.ctx).catch(() => {}); await l.ctx.close().catch(() => {}); }));
 }
 
 // ---------------- one browser per destination ----------------
@@ -95,36 +148,37 @@ const AUTH_COOKIES = new Set(['SID', 'HSID', 'SSID', '__Secure-1PSID', '__Secure
 export const hasGoogleSignin = (cookies: any[]) => cookies.some((c) => AUTH_COOKIES.has(c?.name) && /(^|\.)google\.com$/.test(String(c?.domain ?? '').replace(/^\./, '')));
 
 /**
- * Real launcher for the save cycle and the session check: the destination's persistent profile, with the SNAPSHOT as
- * the authority on cookies.
- *
- * Why (found 2026-11-14): Chromium writes cookies to the profile's disk store in batches (about every 30 s) and a
- * browser closed sooner loses the newest ones. The server-side sign-in closes its browser seconds after Google signs
- * in, so the profile on the volume had NO sign-in cookies (SID, __Secure-1PSID, …) while the snapshot had all of them —
- * the very next save run met Google's sign-in page ("needs sign-in" 73 s after a successful sign-in). Cookies Google
- * rotates near the end of a run were lost the same way. So: the snapshot's cookies are put into the browser on every
- * launch, and the snapshot is rewritten from the live browser before every close while it is still signed in.
+ * Real launcher for the save cycle, the session check and the operator probe: the destination's LIVE browser (see
+ * above). `close` ends the run, not the browser. Only when there is no live browser (after a server restart, a crash,
+ * or a session connected with the desktop command) is one started from the profile, with the snapshot's cookies put in:
+ * Chromium writes cookies to disk only about every 30 s, so the snapshot is the newer record (found 2026-11-14: the
+ * profile held no sign-in cookies at all while the snapshot had them).
  */
 export function profileLauncher(chromePath: string) {
   return async (stateFile: string) => {
-    const dir = profileOf(stateFile);
-    let ctx;
-    try { ctx = await openProfile(chromePath, dir); }
-    catch (e) {
-      if (!fs.existsSync(dir)) throw e;
-      // A damaged profile: rebuild it (the cookies come from the snapshot below).
-      fs.rmSync(dir, { recursive: true, force: true });
-      ctx = await openProfile(chromePath, dir);
+    let l = live.get(keyOf(stateFile));
+    if (!l) {
+      const dir = profileOf(stateFile);
+      let ctx;
+      try { ctx = await openProfile(chromePath, dir); }
+      catch (e) {
+        if (!fs.existsSync(dir)) throw e;
+        // A damaged profile: rebuild it (the cookies come from the snapshot below).
+        fs.rmSync(dir, { recursive: true, force: true });
+        ctx = await openProfile(chromePath, dir);
+      }
+      const cookies = readSnapshotCookies(stateFile);
+      if (cookies.length) await ctx.addCookies(cookies).catch(() => {});
+      adoptBrowser(stateFile, ctx);
+      l = live.get(keyOf(stateFile))!;
     }
-    const cookies = readSnapshotCookies(stateFile);
-    if (cookies.length) await ctx.addCookies(cookies).catch(() => {});
-    const page = ctx.pages()[0] ?? await ctx.newPage();
-    /** Keep the live cookies — only while they are still a signed-in session (never replace a session with nothing). */
-    const keep = async () => { const st = await ctx.storageState(); if (hasGoogleSignin(st.cookies)) writeSnapshot(stateFile, st); };
+    const cur = l;
+    if (!cur.page || cur.page.isClosed?.()) cur.page = cur.ctx.pages()[0] ?? await cur.ctx.newPage();
     return {
-      page,
-      save: keep,
-      close: async () => { await keep().catch(() => {}); await ctx.close(); },
+      page: cur.page,
+      save: () => keepSnapshot(stateFile, cur.ctx),
+      // The browser stays open (and on Google's page, which keeps refreshing the session like a person's open tab).
+      close: async () => { await keepSnapshot(stateFile, cur.ctx).catch(() => {}); },
     };
   };
 }

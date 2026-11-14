@@ -27,7 +27,7 @@ import { backfillCuisines, backfillGoogleTypes, isCuisine } from './cuisine.ts';
 import { refineGenericCategories } from './categories.ts';
 import { allowanceFromStore, setBalance } from './aiUsage.ts';
 import { connectGmaps, disconnectGmaps, ensureGmapsTables, gmapsCheck, gmapsCycle, gmapsStatus } from './sync/savedListRunner.ts';
-import { lockKey, profileLauncher, waitLock } from './sync/gmapsBrowser.ts';
+import { closeAllBrowsers, lockKey, profileLauncher, waitLock } from './sync/gmapsBrowser.ts';
 import { GmapsSignin, remoteBrowser, type RemoteBrowser } from './sync/gmapsSignin.ts';
 import { openListing, probeListMenu, probeNewList, readSaveState, sessionDiagnostics } from './sync/savedList.ts';
 import { findChrome } from './sync/mymaps.ts';
@@ -542,6 +542,7 @@ export function startServer(o: ServerOptions = {}) {
     for (const c of clients.keys()) c.end();
     paused = true; if (running) await running.catch(() => {});
     await gmapsSignin.close().catch(() => {});
+    await closeAllBrowsers().catch(() => {}); // the destinations' live browsers: snapshot, then a proper close
     await new Promise<void>((r) => { srv.close(() => r()); srv.closeAllConnections(); });
     await app.close();
   };

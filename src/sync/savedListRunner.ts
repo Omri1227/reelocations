@@ -16,7 +16,7 @@ import type { Store } from '../db.ts';
 import { nowIso } from '../db.ts';
 import crypto from 'node:crypto';
 import { openListing, probeListMenu, readSaveState, saveToList } from './savedList.ts';
-import { lockKey, profileOf, removeSessionFiles, tryLock, writeSnapshot } from './gmapsBrowser.ts';
+import { lockKey, removeSessionFiles, replaceProfile, tryLock, writeSnapshot } from './gmapsBrowser.ts';
 
 export const DEFAULT_LIST = 'Reelocations';
 const MAX_ATTEMPTS = 5;
@@ -90,9 +90,9 @@ export function connectGmaps(store: Store, dataDir: string, o: { collectionId: n
   const id = old ? Number(old.id) : Number(store.db.prepare("INSERT INTO gmaps_destinations(collection_id,user_id,list_name,state_file,status,connected_at) VALUES(?,?,?,?, 'connected', ?)").run(o.collectionId, o.userId, listName, '', nowIso()).lastInsertRowid);
   const file = path.join(gmapsDir(dataDir), `session-${id}.json`);
   writeSnapshot(file, st);
-  // The new session replaces the old browser profile (a profile is rebuilt from the snapshot when there is none).
-  fs.rmSync(profileOf(file), { recursive: true, force: true });
-  if (o.profileDir) fs.renameSync(o.profileDir, profileOf(file));
+  // The new session replaces the old browser (closed) and profile. A sign-in's profile is used where it is: its browser
+  // is still open and becomes this destination's browser. Without one, a profile is rebuilt from the snapshot.
+  replaceProfile(file, o.profileDir);
   store.db.prepare("UPDATE gmaps_destinations SET user_id=?, list_name=?, state_file=?, status='connected', detail=NULL, connected_at=?, last_check_at=NULL, account_hash=COALESCE(?, account_hash), account_label=COALESCE(?, account_label) WHERE id=?")
     .run(o.userId, listName, file, nowIso(), o.account ? accountHash(o.account) : null, o.account ? accountLabel(o.account) : null, id);
   // Fresh start: the FIRST successful connection of this collection is the cutoff. Only Reels the server receives

@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Store } from '../src/db.ts';
 import { connectGmaps, disconnectGmaps, gmapsCheck, gmapsCycle, gmapsStatus } from '../src/sync/savedListRunner.ts';
-import { lockKey, profileOf, tryLock } from '../src/sync/gmapsBrowser.ts';
+import { closeAllBrowsers, hasLiveBrowser, lockKey, profileOf, tryLock } from '../src/sync/gmapsBrowser.ts';
 import { accountsPageKind } from '../src/sync/savedList.ts';
 import { GmapsSignin } from '../src/sync/gmapsSignin.ts';
 import { tmpDir } from './support.ts';
@@ -143,7 +143,7 @@ test('signing in again keeps the destination, list, cutoff, queue and saved reco
   const id2 = connectGmaps(s, dir, { collectionId: 1, userId: 7, state: session, profileDir: prof, account: 'someone@example.com' });
   assert.equal(id2, id, 'the same destination'); assert.equal(dest().list_name, 'My Food'); assert.equal(dest().status, 'connected');
   assert.equal((gmapsStatus(s, 1) as any).cutoff_at, cutoff);
-  assert.equal(fs.readFileSync(path.join(profileOf(dest().state_file), 'Cookies'), 'utf8'), 'native'); assert.equal(fs.existsSync(prof), false);
+  assert.equal(fs.readFileSync(path.join(profileOf(dest().state_file), 'Cookies'), 'utf8'), 'native'); assert.equal(path.resolve(profileOf(dest().state_file)), path.resolve(prof), 'used where it is (its browser is still open)');
   g.mode = 'ok';
   assert.deepEqual(await gmapsCycle(s, launch, { ops }), { saved: 1, failed: 0, skipped: 0 });
   assert.deepEqual(g.list, ['GC1', 'GC2'], 'the waiting place is saved once; the saved one is not saved again');
@@ -151,7 +151,7 @@ test('signing in again keeps the destination, list, cutoff, queue and saved reco
   assert.equal((s.db.prepare('SELECT COUNT(*) n FROM gmaps_destinations').get() as any).n, 1);
 
   const f = dest().state_file; disconnectGmaps(s, 1);
-  assert.equal(fs.existsSync(f), false); assert.equal(fs.existsSync(profileOf(f)), false);
+  assert.equal(fs.existsSync(f), false); assert.equal(fs.existsSync(profileOf(f)), false); assert.equal(fs.existsSync(prof), false, 'the sign-in profile is forgotten too');
   s.close();
 });
 
@@ -212,18 +212,22 @@ test('sign-in from a phone: the server\'s browser shows Google\'s page, taps and
   await si.start(1, 7); web.url = 'https://www.google.com/maps?hl=en'; await until('connected');
   assert.equal(connected, 1); assert.equal(dest().status, 'connected'); assert.ok(dest().last_ok_at);
   assert.equal(fs.readFileSync(path.join(profileOf(dest().state_file), 'Cookies'), 'utf8'), 'signed-in-on-the-server');
+  const closedBefore = web.closed;
+  assert.equal(hasLiveBrowser(dest().state_file), true, 'the browser that signed in stays open as the destination browser');
+  assert.equal(web.closed, closedBefore);
   assert.equal((s.db.prepare('SELECT COUNT(*) n FROM gmaps_destinations').get() as any).n, 1, 'no second destination');
   g.mode = 'ok';
   assert.equal((await gmapsCheck(s, launch, { probe: async () => assert.fail('just proven: no extra check') })).checked, 0);
   assert.deepEqual(await gmapsCycle(s, launch, { ops }), { saved: 1, failed: 0, skipped: 0 });
   assert.deepEqual(g.list, ['GD1', 'GD2']); assert.equal(item('GD2').status, 'verified');
   assert.equal(JSON.stringify(logs).includes('example.com'), false, 'the account is not logged');
-  await si.close(); s.close();
+  await si.close(); await closeAllBrowsers(); assert.equal(web.closed, closedBefore + 1, 'closed at shutdown'); s.close();
 });
 
-// Found on Railway 2026-11-14: the sign-in browser closed seconds after Google signed in, Chromium had not yet written
-// the new cookies to the profile on disk, and the next run was signed out. The snapshot now rules the cookies.
-test('Google Maps list: a session survives a browser closed right after sign-in (snapshot cookies are applied on every launch)', async (t) => {
+// Found on Railway 2026-11-14: Chromium writes cookies to disk only every ~30 s (a profile had no sign-in cookies while the
+// snapshot had them), and a session moved from one browser to a new one was signed out by Google. So the browser stays
+// open between runs; after a restart it starts from the snapshot, which is kept up to date on every run.
+test('Google Maps list: the browser stays open between runs; after a restart the snapshot cookies are used', async (t) => {
   const { hasGoogleSignin, profileLauncher, readSnapshotCookies, writeSnapshot } = await import('../src/sync/gmapsBrowser.ts');
   assert.equal(hasGoogleSignin(session.cookies), true);
   assert.equal(hasGoogleSignin([{ name: 'NID', domain: '.google.com' }, { name: 'ACCOUNT_CHOOSER', domain: 'accounts.google.com' }]), false, 'a signed-out state never replaces a session');
@@ -237,16 +241,23 @@ test('Google Maps list: a session survives a browser closed right after sign-in 
   writeSnapshot(file, { cookies: [sid], origins: [] });
   fs.mkdirSync(profileOf(file), { recursive: true }); // an existing profile WITHOUT the cookies (what the volume held)
   const launch = profileLauncher(chrome);
-  const b = await launch(file);
-  assert.ok((await b.page.context().cookies('https://www.google.com')).some((c: any) => c.name === 'SID' && c.value === 'abc'), 'the snapshot cookies are in the browser although the profile lacked them');
-  // Google rotates a cookie; closing at once must keep it (Chromium alone would lose it).
-  await b.page.context().addCookies([{ ...sid, value: 'rotated' }]);
-  await b.close();
-  assert.equal(readSnapshotCookies(file).find((c) => c.name === 'SID')?.value, 'rotated');
-  const b2 = await launch(file);
-  assert.equal((await b2.page.context().cookies('https://www.google.com')).find((c: any) => c.name === 'SID')?.value, 'rotated');
-  // Google cleared the sign-in cookies: the snapshot is not replaced by a signed-out state.
-  await b2.page.context().clearCookies();
-  await b2.close();
-  assert.equal(readSnapshotCookies(file).find((c) => c.name === 'SID')?.value, 'rotated');
+  try {
+    const b = await launch(file);
+    assert.ok((await b.page.context().cookies('https://www.google.com')).some((c: any) => c.name === 'SID' && c.value === 'abc'), 'the snapshot cookies are in the browser although the profile lacked them');
+    await b.page.context().addCookies([{ ...sid, value: 'rotated' }]); // Google rotates a cookie
+    await b.close();
+    assert.equal(readSnapshotCookies(file).find((c) => c.name === 'SID')?.value, 'rotated', 'every run keeps the newest cookies');
+    const b2 = await launch(file);
+    assert.equal(b2.page, b.page, 'the next run uses the same open browser');
+    assert.equal(hasLiveBrowser(file), true);
+    await b2.page.context().addCookies([{ ...sid, value: 'rotated-2' }]);
+    await closeAllBrowsers(); // server shutdown
+    assert.equal(hasLiveBrowser(file), false);
+    assert.equal(readSnapshotCookies(file).find((c) => c.name === 'SID')?.value, 'rotated-2', 'shutdown keeps the newest cookies');
+    const b3 = await launch(file); // after the restart
+    assert.equal((await b3.page.context().cookies('https://www.google.com')).find((c: any) => c.name === 'SID')?.value, 'rotated-2');
+    await b3.page.context().clearCookies(); // Google cleared the sign-in cookies
+    await b3.close();
+    assert.equal(readSnapshotCookies(file).find((c) => c.name === 'SID')?.value, 'rotated-2', 'a signed-out state never replaces the snapshot');
+  } finally { await closeAllBrowsers(); }
 });

@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { Store } from '../db.ts';
 import { nowIso } from '../db.ts';
-import { DESKTOP, lockKey, openProfile, waitLock, type Viewport } from './gmapsBrowser.ts';
+import { adoptBrowser, DESKTOP, lockKey, openProfile, waitLock, type Viewport } from './gmapsBrowser.ts';
 import { accountsPageKind, signedInEmail } from './savedList.ts';
 import { accountHash, connectGmaps, ensureGmapsTables, gmapsDir, probeSession } from './savedListRunner.ts';
 
@@ -71,8 +71,10 @@ export class GmapsSignin {
     // The save cycle may have this destination's browser open: wait for it; from then on the cycle skips it.
     const release = d ? await waitLock(lockKey(d.id), 90_000) : null;
     if (d && !release) throw httpError(409, 'the server is saving places right now — try again in a minute');
-    const dir = path.join(gmapsDir(this.o.dataDir()), `signin-c${collectionId}.profile`);
-    const s: Session = { id: Math.random().toString(36).slice(2, 10), collectionId, userId, status: 'waiting', detail: '', startedAt: Date.now(), ctx: null, dir, release, timer: null, expected: d?.account_hash ?? null, verifying: false, viewport: PHONE };
+    // A folder of its own per sign-in: on success it stays the destination's profile, where its browser keeps running.
+    const sid = Math.random().toString(36).slice(2, 10);
+    const dir = path.join(gmapsDir(this.o.dataDir()), `signin-c${collectionId}-${sid}.profile`);
+    const s: Session = { id: sid, collectionId, userId, status: 'waiting', detail: '', startedAt: Date.now(), ctx: null, dir, release, timer: null, expected: d?.account_hash ?? null, verifying: false, viewport: PHONE };
     try {
       fs.rmSync(dir, { recursive: true, force: true });
       s.ctx = await this.o.open(dir, PHONE);
@@ -126,9 +128,12 @@ export class GmapsSignin {
     const email = await (this.o.email ?? signedInEmail)(page);
     if (s.expected && email && accountHash(email) !== s.expected) return void await this.end(s, 'failed', 'That is a different Google account than the one this list is connected to. Sign in to the same account — or disconnect first to switch accounts.');
     const state = await s.ctx!.storageState();
-    // Close first: Chromium writes the profile to disk on exit, and the folder is moved into place.
-    const ctx = s.ctx!; s.ctx = null; await ctx.close();
+    // This browser is NOT closed: it becomes the destination's browser (closing it and starting another with its
+    // cookies is what got every earlier session signed out by Google — see gmapsBrowser.ts).
+    const ctx = s.ctx!;
     const id = connectGmaps(store, this.o.dataDir(), { collectionId: s.collectionId, userId: s.userId, state, profileDir: s.dir, account: email });
+    adoptBrowser((store.db.prepare('SELECT state_file FROM gmaps_destinations WHERE id=?').get(id) as any).state_file, ctx);
+    s.ctx = null;
     store.db.prepare('UPDATE gmaps_destinations SET last_ok_at=?, last_check_at=? WHERE id=?').run(nowIso(), nowIso(), id);
     await this.end(s, 'connected', 'Connected.', true);
     this.o.log(`google maps list connected by sign-in on the server: destination ${id} (collection ${s.collectionId})`); // never the session or the account
